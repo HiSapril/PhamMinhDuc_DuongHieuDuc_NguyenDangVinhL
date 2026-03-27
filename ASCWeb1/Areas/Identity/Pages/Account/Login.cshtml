@@ -1,0 +1,75 @@
+﻿@page
+@model LoginModel
+@inject SignInManager<IdentityUser> SignInManager
+@{
+    ViewData["Title"] = "Log in";
+    Layout = "_MasterLayout";
+}
+
+<div class="container" style="min-height: 100vh; display: flex; align-items: center; justify-content: center;">
+    <div class="row" style="width: 100%;">
+        <div class="col s12 m6 offset-m3 l4 offset-l4">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title center-align">
+                        <h5>Automobile Service Center</h5>
+                        <p class="blue-grey-text">Đăng nhập hệ thống</p>
+                    </span>
+                    
+                    <form asp-route-returnurl="@ViewData["ReturnUrl"]" method="post" autocomplete="off">
+                        <div asp-validation-summary="All" class="red-text"></div>
+                        
+                        <div class="row">
+                            <div class="input-field col s12">
+                                <i class="material-icons prefix">email</i>
+                                <input asp-for="Input.Email" type="email" class="validate" autocomplete="off">
+                                <label asp-for="Input.Email">Email</label>
+                                <span asp-validation-for="Input.Email" class="red-text"></span>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="input-field col s12">
+                                <i class="material-icons prefix">lock</i>
+                                <input asp-for="Input.Password" type="password" class="validate" autocomplete="off">
+                                <label asp-for="Input.Password">Password</label>
+                                <span asp-validation-for="Input.Password" class="red-text"></span>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col s12">
+                                <p>
+                                    <label>
+                                        <input asp-for="Input.RememberMe" type="checkbox" class="filled-in" />
+                                        <span>@Html.DisplayNameFor(m => m.Input.RememberMe)</span>
+                                    </label>
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="row center">
+                            <button class="btn blue-grey waves-effect waves-light btn-large" type="submit" style="width: 100%;">
+                                ĐĂNG NHẬP
+                                <i class="material-icons right">send</i>
+                            </button>
+                        </div>
+
+                        <div class="row center">
+                            <a asp-page="./ForgotPassword" class="blue-grey-text">Quên mật khẩu?</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        $(document).ready(function(){
+            M.updateTextFields();
+        });
+    </script>
+}
