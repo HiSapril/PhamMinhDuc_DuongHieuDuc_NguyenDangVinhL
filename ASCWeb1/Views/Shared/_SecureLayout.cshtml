@@ -23,7 +23,20 @@
         <li>
             <div class="user-view">
                 <div class="background blue-grey lighten-1"></div>
-                <a href="#!user"><img class="circle" src="~/images/male.png"></a>
+                <a href="#!user">
+                    @{
+                        var avatarUrl = currentUser?.ProfilePictureUrl;
+                        // Sử dụng UI Avatars làm fallback nếu không có avatar từ Google
+                        var userName = currentUser?.Name ?? currentUser?.Email ?? "User";
+                        var defaultAvatar = $"https://ui-avatars.com/api/?name={Uri.EscapeDataString(userName)}&size=64&background=607d8b&color=fff";
+                    }
+                    <img class="circle" 
+                         id="userAvatar"
+                         src="@(string.IsNullOrEmpty(avatarUrl) ? defaultAvatar : avatarUrl)" 
+                         alt="User Avatar" 
+                         onerror="this.onerror=null; this.src='@defaultAvatar';" 
+                         style="width: 64px; height: 64px; object-fit: cover;">
+                </a>
                 <a href="#!name"><span class="white-text name">@currentUser.Name</span></a>
                 <a href="#!email"><span class="white-text email">@currentUser.Email</span></a>
             </div>
@@ -43,7 +56,7 @@
     </div>
 </main>
 
-<footer class="page-footer blue-grey lighten-1 secureLayout">
+<footer class="page-footer blue-grey lighten-1 secureLayout" style="@(ViewData["HideFooter"] != null && (bool)ViewData["HideFooter"] ? "display:none;" : "")">
     <div class="container">
         <div class="row">
             <div class="col l6 s12">

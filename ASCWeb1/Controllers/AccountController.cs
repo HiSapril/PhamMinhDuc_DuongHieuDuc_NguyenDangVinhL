@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Encodings.Web;
 
@@ -12,12 +13,58 @@ namespace ASCWeb1.Controllers
     public class AccountController : Controller
     {
         private readonly UserManager<IdentityUser> _userManager;
+        private readonly SignInManager<IdentityUser> _signInManager;
         private readonly IEmailSender _emailSender;
 
-        public AccountController(UserManager<IdentityUser> userManager, IEmailSender emailSender)
+        public AccountController(
+            UserManager<IdentityUser> userManager, 
+            SignInManager<IdentityUser> signInManager,
+            IEmailSender emailSender)
         {
             _userManager = userManager;
+            _signInManager = signInManager;
             _emailSender = emailSender;
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> RefreshAvatar()
+        {
+            try
+            {
+                var user = await _userManager.GetUserAsync(User);
+                if (user == null)
+                {
+                    return Json(new { success = false, message = "User not found" });
+                }
+
+                // Lấy external login info
+                var logins = await _userManager.GetLoginsAsync(user);
+                var googleLogin = logins.FirstOrDefault(l => l.LoginProvider == "Google");
+
+                if (googleLogin == null)
+                {
+                    return Json(new { success = false, message = "No Google account linked" });
+                }
+
+                // Kiểm tra xem có picture claim không
+                var userClaims = await _userManager.GetClaimsAsync(user);
+                var pictureClaim = userClaims.FirstOrDefault(c => c.Type == "picture");
+
+                if (pictureClaim != null)
+                {
+                    // Refresh sign-in để cập nhật claims vào cookie
+                    await _signInManager.RefreshSignInAsync(user);
+                    return Json(new { success = true, message = "Avatar refreshed successfully", avatarUrl = pictureClaim.Value });
+                }
+                else
+                {
+                    return Json(new { success = false, message = "No avatar found in claims" });
+                }
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
         }
 
         [HttpPost]

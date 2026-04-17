@@ -24,6 +24,16 @@ builder.Services.AddIdentity<IdentityUser, IdentityRole>(options => {
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
 
+// Cấu hình Cookie cho Identity
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.LoginPath = "/Identity/Account/Login";
+    options.LogoutPath = "/Identity/Account/Logout";
+    options.AccessDeniedPath = "/Identity/Account/AccessDenied";
+    options.SlidingExpiration = true;
+    options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
+});
+
 builder.Services.Configure<PasswordHasherOptions>(options =>
 {
     options.CompatibilityMode = PasswordHasherCompatibilityMode.IdentityV3;
@@ -31,6 +41,9 @@ builder.Services.Configure<PasswordHasherOptions>(options =>
 });
 // --- 3. ĐĂNG KÝ CÁC DỊCH VỤ KHÁC ---
 builder.Services.AddMyDependencyGroup();
+
+// --- 4. ĐĂNG KÝ EXTERNAL AUTHENTICATION ---
+builder.Services.AddAuthentication(builder.Configuration);
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();

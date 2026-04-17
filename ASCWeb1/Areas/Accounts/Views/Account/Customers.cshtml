@@ -1,0 +1,220 @@
+@using Microsoft.AspNetCore.Identity;
+@using System.Security.Claims;
+@model ASCWeb1.Areas.Accounts.Models.CustomerViewModel
+@inject UserManager<IdentityUser> userManager;
+@{
+    Layout = "_SecureLayout";
+}
+<div>
+    <div class="row"></div>
+    <div class="row padding-left-20px padding-right-20px">
+        <div class="row z-depth-3">
+            <div class="section white-text padding-left-10px blue-grey lighten-1">
+                <h5>Users</h5>
+            </div>
+        </div>
+        <div class="divider"></div>
+        <div class="col s12 padding-bottom-15px">
+            @if (Model.Customers != null && Model.Customers.Any())
+            {
+                @* Display List of Service Engineers *@
+                <table class="highlight centered" id="tblCustomers">
+                    <thead>
+                        <tr>
+                            <th data-field="Email">Email</th>
+                            <th data-field="IsActive">Is Active</th>
+                            <th data-field="IsActiveImg">Status</th>
+                            <th data-field="Actions">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var user in Model.Customers)
+                        {
+                            var identity = await userManager.GetClaimsAsync(user);
+                            var isActiveClaim = identity.SingleOrDefault(p => p.Type == "IsActive");
+                            var isActive = isActiveClaim != null ? Boolean.Parse(isActiveClaim.Value) : false;
+                            <tr>
+                                <td>@user.Email</td>
+                                <td>
+                                    @isActive
+                                </td>
+                                <td>
+                                    @if (isActive)
+                                    {
+                                        <i class="material-icons green-text">check_circle</i>
+                                    }
+                                    else
+                                    {
+                                        <i class="material-icons red-text">cancel</i>
+                                    }
+                                </td>
+                                <td>
+                                    <a href="#!" class="btn-edit" data-email="@user.Email" data-isactive="@isActive" style="cursor: pointer;">
+                                        <i class="material-icons blue-text text-darken-2" style="pointer-events: none;">edit</i>
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+            else
+            {
+                @* In case of No records, display no records message *@
+                <div class="card blue-grey lighten-1">
+                    <div class="card-content white-text">
+                        <span class="card-title">No Service Engineers!!!</span>
+                        <p>
+                            No Service Engineers found, please add a Service Engineer to system.
+                        </p>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+    <div class="row"></div>
+</div>
+
+    @* Details Section *@
+    <div class="row z-depth-3">
+        <div class="col s12 padding-0px">
+            <div class="section white-text padding-left-10px blue-grey lighten-1">
+                <h5>Service Engineer Details</h5>
+            </div>
+            <div class="divider"></div>
+            <form asp-controller="Account" asp-action="Customers" method="post" class="col s12" id="frmUser">
+                <input type="hidden" asp-for="Registration.IsEdit" />
+                <input type="hidden" asp-for="Registration.Email" />
+                <div class="input-field col s4">
+                    <input asp-for="Registration.Email" id="Input_Registration_Email" />
+                    <label asp-for="Registration.Email"></label>
+                </div>
+                <div class="input-field col s4">
+                    <div class="switch">
+                        <label>
+                            Is Active
+                            <input asp-for="Registration.IsActive" class="validate" />
+                            <span class="lever"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="input-field col s4 right-align">
+                    <button class="btn waves-effect waves-light btnSubmit" type="submit" name="action">
+                        Save
+                        <i class="material-icons right">send</i>
+                    </button>
+                    <button class="btn waves-effect waves-light reset red lighten-1" type="button" name="action">
+                        Reset
+                    </button>
+                </div>
+                <div class="row col s12 right-align" asp-validation-summary="All"></div>
+            </form>
+        </div>
+    </div>
+    <div class="row"></div>
+</div>
+
+
+@section Scripts{
+    <script>
+        $(document).ready(function () {
+            console.log('Customers page loaded');
+            
+            // Initialize DataTable to show list of Engineers
+            var table = $('#tblCustomers').DataTable({
+                'pageLength': 3,
+                // Number of records to be displayed per page
+                'lengthMenu': [[3, 5, 10, -1], [3, 5, 10, 'All']]
+            });
+            
+            console.log('DataTable initialized');
+            
+            // Set Styles for DataTable and Number of Records to be displayed in drop-down
+            $('#tblCustomers').css('width', '100%');
+            $('select[name=tblCustomers_length]').formSelect();
+            // Get the column API object
+            var isActiveColumn = table.column(1);
+            isActiveColumn.visible(false);
+            $('.btnSubmit').attr('disabled', 'disabled');
+
+            // Handle Reset functionality
+            $(document).on('click', '.reset', function () {
+                $('#frmUser')[0].reset();
+                $('#Input_Registration_Email').removeAttr('disabled');
+                $('#Registration_IsEdit').val('false');
+                $('.btnSubmit').attr('disabled', 'disabled');
+            });
+
+            // This is required to disable Email filed on Server-side model validation failure.
+            if ($('#Registration_IsEdit').val() === 'true') {
+                $('#Input_Registration_Email').attr('disabled', 'disabled');
+                $('.btnSubmit').removeAttr('disabled');
+            }
+
+            // On click of Edit button - multiple event handlers for better compatibility
+            $('#tblCustomers tbody').on('click', 'a.btn-edit', function (e) {
+                console.log('Edit button clicked (a tag)');
+                e.preventDefault();
+                e.stopPropagation();
+                handleEdit($(this));
+            });
+            
+            $('#tblCustomers tbody').on('click', 'i.material-icons', function (e) {
+                console.log('Edit icon clicked');
+                e.preventDefault();
+                e.stopPropagation();
+                handleEdit($(this).closest('a.btn-edit'));
+            });
+            
+            $('#tblCustomers tbody').on('click', 'td', function (e) {
+                var editBtn = $(this).find('a.btn-edit');
+                if (editBtn.length > 0) {
+                    console.log('TD clicked with edit button');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleEdit(editBtn);
+                }
+            });
+            
+            function handleEdit($element) {
+                try {
+                    var email = $element.data('email');
+                    var isActive = $element.data('isactive');
+                    
+                    console.log('Email:', email, 'IsActive:', isActive);
+                    
+                    if (!email) {
+                        console.error('No email found');
+                        return;
+                    }
+                    
+                    $('#Registration_IsEdit').val('true');
+                    $('#Input_Registration_Email').val(email);
+                    $('#Input_Registration_Email').attr('disabled', 'disabled');
+                    
+                    // Handle boolean conversion properly
+                    var isActiveValue = (isActive === true || isActive === 'True' || isActive === 'true');
+                    $('#Registration_IsActive').prop('checked', isActiveValue);
+                    
+                    $('.btnSubmit').removeAttr('disabled');
+                    M.updateTextFields();
+                    
+                    // Scroll to form
+                    $('html, body').animate({
+                        scrollTop: $("#frmUser").offset().top - 100
+                    }, 500);
+                    
+                    console.log('Form populated successfully');
+                } catch (error) {
+                    console.error('Error in edit handler:', error);
+                }
+            }
+
+            // Set hidden Email field to correct value from UI field
+            $(document).on('click', '.btnSubmit', function () {
+                $('#Registration_Email').val($('#Input_Registration_Email').val());
+                M.updateTextFields();
+            });
+        });
+    </script>
+}

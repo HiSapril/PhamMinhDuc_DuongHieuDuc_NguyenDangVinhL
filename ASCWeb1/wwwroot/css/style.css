@@ -106,3 +106,27 @@ header.secureLayout, main.secureLayout, footer.secureLayout {
 footer.page-footer {
   margin: 0;
 }
+
+.padding-bottom-15px {
+    padding-bottom: 15px !important;
+}
+
+.cursor-hand {
+    cursor: pointer;
+}
+
+.padding-left-20px {
+    padding-left: 20px;
+}
+
+.padding-right-20px {
+    padding-right: 20px;
+}
+
+.margin-top-50px {
+    margin-top: 50px;
+}
+
+.margin-bottom-50px {
+    margin-bottom: 50px;
+}

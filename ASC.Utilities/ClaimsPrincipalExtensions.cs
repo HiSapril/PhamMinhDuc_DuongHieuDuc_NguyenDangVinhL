@@ -19,7 +19,8 @@ namespace ASC.Utilities
                 Name = principal.FindFirst(c => c.Type == ClaimTypes.Name).Value,
                 Email = principal.FindFirst(c => c.Type == ClaimTypes.Email).Value,
                 Roles = principal.FindAll(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToArray(),
-                IsActive = Boolean.Parse(principal.FindFirst(c => c.Type == "IsActive")?.Value ?? "false")
+                IsActive = Boolean.Parse(principal.FindFirst(c => c.Type == "IsActive")?.Value ?? "false"),
+                ProfilePictureUrl = principal.FindFirst(c => c.Type == "picture")?.Value
             };
         }
     }

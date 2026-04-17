@@ -5,6 +5,10 @@ using ASCWeb1.Data;
 using ASCWeb1.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Threading.Tasks;
 
 namespace ASCWeb1.Services
 {
@@ -46,6 +50,29 @@ namespace ASCWeb1.Services
             // Đăng ký Cache và Navigation
             services.AddDistributedMemoryCache();
             services.AddSingleton<INavigationCacheOperations, NavigationCacheOperations>();
+
+            return services;
+        }
+
+        public static IServiceCollection AddAuthentication(this IServiceCollection services, IConfiguration config)
+        {
+            services.AddAuthentication()
+                .AddGoogle(options =>
+                {
+                    options.ClientId = config["Google:Identity:ClientId"] ?? string.Empty;
+                    options.ClientSecret = config["Google:Identity:ClientSecret"] ?? string.Empty;
+                    
+                    // Yêu cầu scope để lấy thông tin profile và avatar
+                    options.Scope.Add("profile");
+                    options.Scope.Add("email");
+                    
+                    // Map các claims từ Google
+                    options.ClaimActions.MapJsonKey("picture", "picture");
+                    options.ClaimActions.MapJsonKey("urn:google:picture", "picture");
+                    
+                    // Lưu tokens để có thể truy cập thông tin user
+                    options.SaveTokens = true;
+                });
 
             return services;
         }
