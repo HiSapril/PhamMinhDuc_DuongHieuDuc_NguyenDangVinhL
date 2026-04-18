@@ -129,15 +129,6 @@
           "NestedItems": []
         }
       ]
-    },
-    {
-      "DisplayName": "Logout",
-      "MaterialIcon": "exit_to_app",
-      "Link": "#!",
-      "IsNested": false,
-      "Sequence": 8,
-      "UserRoles": [ "User", "Engineer", "Admin" ],
-      "NestedItems": []
     }
   ]
 }

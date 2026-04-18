@@ -76,7 +76,7 @@ namespace ASCWeb1.Areas.Identity.Pages.Account
         
         public IActionResult OnGet()
         {
-            // Không redirect về Login nữa, để Google callback có thể hoạt động
+            // Redirect về Login vì không cần hiển thị form này nữa
             return RedirectToPage("./Login");
         }
 
@@ -113,13 +113,6 @@ namespace ASCWeb1.Areas.Identity.Pages.Account
             _logger.LogInformation("External login info retrieved. Provider: {Provider}, Email: {Email}", 
                 info.LoginProvider, 
                 info.Principal.FindFirstValue(ClaimTypes.Email));
-            
-            // Log tất cả claims để debug
-            _logger.LogInformation("Available claims:");
-            foreach (var claim in info.Principal.Claims)
-            {
-                _logger.LogInformation("  {Type}: {Value}", claim.Type, claim.Value);
-            }
 
             // Sign in the user with this external login provider if the user already has a login.
             var result = await _signInManager.ExternalLoginSignInAsync(info.LoginProvider, info.ProviderKey, isPersistent: false, bypassTwoFactor: true);
@@ -138,12 +131,9 @@ namespace ASCWeb1.Areas.Identity.Pages.Account
                     var user = await _userManager.FindByEmailAsync(email);
                     if (user != null)
                     {
-                        // Lấy picture URL từ Google claims
                         var pictureClaim = info.Principal.FindFirst("picture") 
                             ?? info.Principal.FindFirst("urn:google:picture")
                             ?? info.Principal.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/uri");
-                        
-                        _logger.LogInformation("Picture claim for existing user: {Picture}", pictureClaim?.Value ?? "NULL");
                         
                         if (pictureClaim != null && !string.IsNullOrEmpty(pictureClaim.Value))
                         {
@@ -153,24 +143,18 @@ namespace ASCWeb1.Areas.Identity.Pages.Account
                             if (existingPictureClaim != null)
                             {
                                 await _userManager.ReplaceClaimAsync(user, existingPictureClaim, new Claim("picture", pictureClaim.Value));
-                                _logger.LogInformation("Updated picture claim: {Picture}", pictureClaim.Value);
                             }
                             else
                             {
                                 await _userManager.AddClaimAsync(user, new Claim("picture", pictureClaim.Value));
-                                _logger.LogInformation("Added picture claim: {Picture}", pictureClaim.Value);
                             }
                             
-                            // QUAN TRỌNG: Sign out và sign in lại để claims được cập nhật vào cookie
-                            await _signInManager.SignOutAsync();
-                            await _signInManager.SignInAsync(user, isPersistent: false);
-                            _logger.LogInformation("Refreshed sign-in with updated claims");
+                            await _signInManager.RefreshSignInAsync(user);
                         }
                     }
                 }
                 
-                // Redirect đến Dashboard
-                return RedirectToAction("Dashboard", "Dashboard", new { area = "ServiceRequests" });
+                return LocalRedirect(returnUrl);
             }
             if (result.IsLockedOut)
             {
@@ -194,109 +178,170 @@ namespace ASCWeb1.Areas.Identity.Pages.Account
                 
                 if (existingUser != null)
                 {
-                    // Trường hợp email đã được đăng ký (Admin hoặc Engineer)
-                    ErrorMessage = $"Email '{email}' is already taken.";
-                    _logger.LogWarning("Email {Email} already exists in the system", email);
+                    // Email đã tồn tại -> Liên kết external login và đăng nhập
+                    _logger.LogInformation("Email {Email} already exists. Linking external login.", email);
                     
-                    // Hiển thị form với thông báo lỗi
-                    ReturnUrl = returnUrl;
-                    ProviderDisplayName = info.ProviderDisplayName;
-                    Input = new InputModel { Email = email };
-                    return Page();
-                }
-                else
-                {
-                    // Trường hợp email chưa đăng ký -> Tự động tạo tài khoản User mới
-                    _logger.LogInformation("Creating new user account for {Email}", email);
+                    var addLoginResult = await _userManager.AddLoginAsync(existingUser, info);
                     
-                    var user = new IdentityUser
+                    if (addLoginResult.Succeeded)
                     {
-                        UserName = email,
-                        Email = email,
-                        EmailConfirmed = true
-                    };
-                    
-                    var createResult = await _userManager.CreateAsync(user);
-                    
-                    if (createResult.Succeeded)
-                    {
-                        // Lấy avatar từ Google - thử nhiều claim types khác nhau
+                        HttpContext.Session.SetString("CurrentUserEmail", existingUser.Email);
+                        
+                        // Cập nhật avatar
                         var pictureClaim = info.Principal.FindFirst("picture") 
                             ?? info.Principal.FindFirst("urn:google:picture")
                             ?? info.Principal.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/uri");
                         
-                        _logger.LogInformation("Picture claim value: {Picture}", pictureClaim?.Value ?? "NULL");
-                        
-                        // Thêm claims
-                        await _userManager.AddClaimAsync(user, new Claim(ClaimTypes.Name, user.Email));
-                        await _userManager.AddClaimAsync(user, new Claim(ClaimTypes.Email, user.Email));
-                        await _userManager.AddClaimAsync(user, new Claim("IsActive", "true"));
-                        
-                        // Lưu avatar từ Google
                         if (pictureClaim != null && !string.IsNullOrEmpty(pictureClaim.Value))
                         {
-                            await _userManager.AddClaimAsync(user, new Claim("picture", pictureClaim.Value));
-                            _logger.LogInformation("Saved picture claim: {Picture}", pictureClaim.Value);
-                        }
-                        else
-                        {
-                            _logger.LogWarning("No picture claim found from Google");
-                            // Log tất cả claims để debug
-                            _logger.LogInformation("All available claims from Google:");
-                            foreach (var claim in info.Principal.Claims)
-                            {
-                                _logger.LogInformation("  Claim Type: {Type}, Value: {Value}", claim.Type, claim.Value);
-                            }
-                        }
-                        
-                        // Thêm role User
-                        var roleResult = await _userManager.AddToRoleAsync(user, Roles.User.ToString());
-                        
-                        if (roleResult.Succeeded)
-                        {
-                            // Liên kết external login với user
-                            var addLoginResult = await _userManager.AddLoginAsync(user, info);
+                            var userClaims = await _userManager.GetClaimsAsync(existingUser);
+                            var existingPictureClaim = userClaims.FirstOrDefault(c => c.Type == "picture");
                             
-                            if (addLoginResult.Succeeded)
+                            if (existingPictureClaim != null)
                             {
-                                // Lưu Session giống như đăng nhập bằng email/password
-                                HttpContext.Session.SetString("CurrentUserEmail", user.Email);
-                                
-                                // Đăng nhập
-                                await _signInManager.SignInAsync(user, isPersistent: false);
-                                _logger.LogInformation("User {Email} created and logged in with {Provider}", email, info.LoginProvider);
-                                
-                                // Redirect đến Dashboard giống như đăng nhập thường
-                                return RedirectToAction("Dashboard", "Dashboard", new { area = "ServiceRequests" });
+                                await _userManager.ReplaceClaimAsync(existingUser, existingPictureClaim, new Claim("picture", pictureClaim.Value));
                             }
                             else
                             {
-                                _logger.LogError("Failed to add external login: {Errors}", string.Join(", ", addLoginResult.Errors.Select(e => e.Description)));
+                                await _userManager.AddClaimAsync(existingUser, new Claim("picture", pictureClaim.Value));
                             }
                         }
-                        else
-                        {
-                            _logger.LogError("Failed to add User role: {Errors}", string.Join(", ", roleResult.Errors.Select(e => e.Description)));
-                        }
+                        
+                        await _signInManager.SignInAsync(existingUser, isPersistent: false);
+                        _logger.LogInformation("Linked and logged in user {Email} with {Provider}", email, info.LoginProvider);
+                        
+                        return LocalRedirect(returnUrl);
                     }
                     else
                     {
-                        _logger.LogError("Failed to create user: {Errors}", string.Join(", ", createResult.Errors.Select(e => e.Description)));
+                        ErrorMessage = $"Cannot link your Google account. {string.Join(", ", addLoginResult.Errors.Select(e => e.Description))}";
+                        _logger.LogError("Failed to link external login: {Errors}", string.Join(", ", addLoginResult.Errors.Select(e => e.Description)));
+                        return RedirectToPage("./Login", new { ReturnUrl = returnUrl });
+                    }
+                }
+                else
+                {
+                    // Email chưa tồn tại -> Chuyển sang trang đăng ký với thông tin từ Google
+                    ReturnUrl = returnUrl;
+                    ProviderDisplayName = info.ProviderDisplayName;
+                    
+                    if (Input == null)
+                    {
+                        Input = new InputModel();
                     }
                     
-                    // Nếu có lỗi, hiển thị thông báo
-                    ErrorMessage = "Unable to create user account. Please try again.";
-                    return RedirectToPage("./Login", new { ReturnUrl = returnUrl });
+                    Input.Email = email;
+                    
+                    // Lưu thông tin Google vào TempData để dùng khi submit form
+                    TempData["GoogleEmail"] = email;
+                    TempData["GoogleProvider"] = info.LoginProvider;
+                    TempData["GoogleProviderKey"] = info.ProviderKey;
+                    
+                    var pictureClaim = info.Principal.FindFirst("picture") 
+                        ?? info.Principal.FindFirst("urn:google:picture")
+                        ?? info.Principal.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/uri");
+                    
+                    if (pictureClaim != null)
+                    {
+                        TempData["GooglePicture"] = pictureClaim.Value;
+                    }
+                    
+                    _logger.LogInformation("New user {Email}, showing registration form", email);
+                    
+                    // Hiển thị form đăng ký
+                    return Page();
                 }
             }
         }
 
         public async Task<IActionResult> OnPostConfirmationAsync(string returnUrl = null)
         {
-            // Phương thức này không còn được sử dụng vì đã tự động tạo tài khoản trong OnGetCallbackAsync
-            // Giữ lại để tránh lỗi nếu có form submit
             returnUrl = returnUrl ?? Url.Content("~/");
-            return RedirectToPage("./Login", new { ReturnUrl = returnUrl });
+            
+            // Lấy thông tin Google từ TempData
+            var googleEmail = TempData["GoogleEmail"] as string;
+            var googleProvider = TempData["GoogleProvider"] as string;
+            var googleProviderKey = TempData["GoogleProviderKey"] as string;
+            var googlePicture = TempData["GooglePicture"] as string;
+            
+            if (string.IsNullOrEmpty(googleEmail) || string.IsNullOrEmpty(googleProvider) || string.IsNullOrEmpty(googleProviderKey))
+            {
+                ErrorMessage = "Session expired. Please try logging in again.";
+                return RedirectToPage("./Login", new { ReturnUrl = returnUrl });
+            }
+            
+            if (ModelState.IsValid)
+            {
+                // Tạo user mới
+                var user = new IdentityUser
+                {
+                    UserName = Input.Email,
+                    Email = Input.Email,
+                    EmailConfirmed = true
+                };
+                
+                var createResult = await _userManager.CreateAsync(user);
+                
+                if (createResult.Succeeded)
+                {
+                    // Thêm claims
+                    await _userManager.AddClaimAsync(user, new Claim(ClaimTypes.Name, user.Email));
+                    await _userManager.AddClaimAsync(user, new Claim(ClaimTypes.Email, user.Email));
+                    await _userManager.AddClaimAsync(user, new Claim("IsActive", "true"));
+                    
+                    // Lưu avatar từ Google
+                    if (!string.IsNullOrEmpty(googlePicture))
+                    {
+                        await _userManager.AddClaimAsync(user, new Claim("picture", googlePicture));
+                    }
+                    
+                    // Thêm role User
+                    var roleResult = await _userManager.AddToRoleAsync(user, Roles.User.ToString());
+                    
+                    if (roleResult.Succeeded)
+                    {
+                        // Liên kết external login
+                        var loginInfo = new UserLoginInfo(googleProvider, googleProviderKey, googleProvider);
+                        var addLoginResult = await _userManager.AddLoginAsync(user, loginInfo);
+                        
+                        if (addLoginResult.Succeeded)
+                        {
+                            HttpContext.Session.SetString("CurrentUserEmail", user.Email);
+                            await _signInManager.SignInAsync(user, isPersistent: false);
+                            _logger.LogInformation("User {Email} registered and logged in with {Provider}", user.Email, googleProvider);
+                            
+                            return LocalRedirect(returnUrl);
+                        }
+                        else
+                        {
+                            foreach (var error in addLoginResult.Errors)
+                            {
+                                ModelState.AddModelError(string.Empty, error.Description);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        foreach (var error in roleResult.Errors)
+                        {
+                            ModelState.AddModelError(string.Empty, error.Description);
+                        }
+                    }
+                }
+                else
+                {
+                    foreach (var error in createResult.Errors)
+                    {
+                        ModelState.AddModelError(string.Empty, error.Description);
+                    }
+                }
+            }
+            
+            // Nếu có lỗi, giữ lại TempData và hiển thị lại form
+            TempData.Keep();
+            ProviderDisplayName = googleProvider;
+            ReturnUrl = returnUrl;
+            return Page();
         }
 
         private IdentityUser CreateUser()

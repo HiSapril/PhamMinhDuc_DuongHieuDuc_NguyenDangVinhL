@@ -78,14 +78,18 @@
         font-size: 22px;
         margin: 0;
     }
-    .edit {
-        cursor: pointer !important;
-        user-select: none;
+    /* Fix for action buttons */
+    .btn-floating.edit {
+        position: relative;
+        z-index: 10;
+        pointer-events: auto !important;
     }
-    .edit:hover {
-        color: #1976d2 !important;
+    .btn-floating.edit:hover {
         transform: scale(1.1);
-        transition: all 0.2s;
+        box-shadow: 0 5px 11px 0 rgba(0,0,0,0.18), 0 4px 15px 0 rgba(0,0,0,0.15);
+    }
+    table td {
+        position: relative;
     }
 </style>
 
@@ -94,8 +98,8 @@
         <div class="row">
             <div class="row padding-left-20px padding-right-20px">
                 <div class="row z-depth-3">
-                    <div class="section white-text blue-grey lighten-1" style="padding-left: 20px;">
-                        <h5>Users</h5>
+                    <div class="section white-text blue-grey lighten-1" style="padding: 15px 20px;">
+                        <h5 style="margin: 0;">Users</h5>
                     </div>
                 </div>
             <div class="divider"></div>
@@ -103,14 +107,13 @@
                 @if (Model.ServiceEngineers != null)
                 {
                     @* Display List of Service Engineers *@
-                    <table class="highlight centered" id="tblServiceEngineers">
+                    <table class="highlight centered responsive-table" id="tblServiceEngineers">
                         <thead>
                             <tr>
                                 <th data-field="Email">Email</th>
-                                <th data-field="UserName">Name</th>
                                 <th data-field="IsActive">Is Active</th>
-                                <th data-field="IsActiveImg">Is Active</th>
-                                <th data-field="Actions">Edit User</th>
+                                <th data-field="Status">Status</th>
+                                <th data-field="Actions">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -121,10 +124,7 @@
                                 var isActive = isActiveClaim != null && bool.Parse(isActiveClaim.Value);
                                 <tr>
                                     <td>@user.Email</td>
-                                    <td>@user.UserName</td>
-                                    <td>
-                                        @isActive
-                                    </td>
+                                    <td>@isActive</td>
                                     <td>
                                         @if (isActive)
                                         {
@@ -136,12 +136,11 @@
                                         }
                                     </td>
                                     <td>
-                                        <a class="small material-icons edit cursor-hand" 
-                                           data-email="@user.Email" 
-                                           data-username="@user.UserName" 
-                                           data-isactive="@isActive"
-                                           style="cursor: pointer;">
-                                            mode_edit
+                                        <a href="javascript:void(0);" 
+                                           class="btn-floating btn-small waves-effect waves-light teal edit-btn" 
+                                           onclick="editUser('@user.Email', '@user.UserName', @(isActive.ToString().ToLower()))"
+                                           title="Edit User">
+                                            <i class="material-icons">edit</i>
                                         </a>
                                     </td>
                                 </tr>
@@ -167,8 +166,8 @@
         @* Details Section *@
         <div class="row z-depth-3">
             <div class="col s12 padding-0px">
-                <div class="section white-text blue-grey lighten-1" style="padding-left: 20px;">
-                    <h5>Service Engineer Details</h5>
+                <div class="section white-text blue-grey lighten-1" style="padding: 15px 20px;">
+                    <h5 style="margin: 0;">Service Engineer Details</h5>
                 </div>
                 <div class="divider"></div>
                 <form asp-controller="Account" asp-action="ServiceEngineers" method="post" class="col s12" id="frmUser">
@@ -246,20 +245,43 @@
     <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.js"></script>
     
     <script>
+        // Global function to edit user
+        function editUser(email, username, isActive) {
+            console.log('editUser called:', email, username, isActive);
+            
+            // Set cả 2 email fields
+            $('#Input_Registration_Email').val(email);
+            $('#Registration_Email').val(email);
+            $('#Input_Registration_Email').attr('disabled', 'disabled');
+            
+            $('#Registration_UserName').val(username);
+            $('#Registration_UserName').addClass('valid');
+            $('#Registration_IsActive').prop('checked', isActive);
+            $('#Registration_IsEdit').val('true');
+            $('.btnSubmit').text('Save');
+            M.updateTextFields();
+            
+            // Scroll to form
+            $('html, body').animate({
+                scrollTop: $('#frmUser').offset().top - 20
+            }, 500);
+        }
+        
         $(document).ready(function() {
+            console.log('Initializing DataTable for Service Engineers');
+            
             // Initialize Datatable to show list of Engineers
             var table = $('#tblServiceEngineers').DataTable({
-                'page_length': 3,
-                // Number of records to be displayed per page
-                'lengthMenu': [[3, 5, 10, -1], [3, 5, 10, 'All']]
+                'pageLength': 3,
+                'lengthMenu': [[3, 5, 10, -1], [3, 5, 10, 'All']],
+                'columnDefs': [
+                    { 'visible': false, 'targets': 1 } // Hide the "Is Active" text column
+                ]
             });
 
-            // Set Styles for DataTable and Number of Records to be displayed in drop-down
+            // Set Styles for DataTable
             $('#tblServiceEngineers').css('width', '100%');
             $('select[name=tblServiceEngineers_length]').formSelect();
-            // Get the column API object
-            var isActiveColumn = table.column(2);
-            isActiveColumn.visible(false);
 
             // Handle Reset functionality
             $(document).on('click', '.reset', function () {
@@ -274,34 +296,18 @@
                 $('#Input_Registration_Email').attr('disabled', 'disabled');
             }
 
-            // On click of Edit icon, populate the details section with details of service engineer
-            $(document).on('click', '.edit', function (e) {
-                e.preventDefault();
-                var $this = $(this);
-                var email = $this.data('email');
-                var username = $this.data('username');
-                var isActive = $this.data('isactive');
-                
-                $('#Input_Registration_Email').val(email);
-                $('#Input_Registration_Email').attr('disabled', 'disabled');
-                $('#Registration_UserName').val(username);
-                $('#Registration_UserName').addClass('valid');
-                $('#Registration_IsActive').prop('checked', isActive === true || isActive === 'True');
-                $('#Registration_IsEdit').val('true');
-                $('.btnSubmit').text('Save');
-                M.updateTextFields();
-                
-                // Scroll to form
-                $('html, body').animate({
-                    scrollTop: $('#frmUser').offset().top - 20
-                }, 500);
-            });
-
             // Set hidden Email field to correct value from UI field
-            // This is required for
-            $(document).on('click', '.btnSubmit', function () {
-                $('#Registration_Email').val($('#Input_Registration_Email').val());
+            $(document).on('click', '.btnSubmit', function (e) {
+                // Đảm bảo cả 2 email fields đều có giá trị
+                var emailValue = $('#Input_Registration_Email').val();
+                $('#Registration_Email').val(emailValue);
+                
+                // Enable email field trước khi submit
+                $('#Input_Registration_Email').removeAttr('disabled');
+                
                 M.updateTextFields();
+                
+                console.log('Submitting with email:', emailValue);
             });
         });
     </script>

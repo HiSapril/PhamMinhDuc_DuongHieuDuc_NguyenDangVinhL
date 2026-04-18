@@ -16,9 +16,9 @@
             <li>
                 <ul class="collapsible collapsible-accordion">
                     <li>
-                        <a class="collapsible-header" id="@string.Format("ancr{0}", menuItem.DisplayName.Replace(" ", ""))">
-                            @menuItem.DisplayName
+                        <a class="collapsible-header" id="@string.Format("ancr{0}", menuItem.DisplayName.Replace(" ", ""))" style="padding-left: 32px;">
                             <i class="material-icons">@menuItem.MaterialIcon</i>
+                            @menuItem.DisplayName
                         </a>
                         <div class="collapsible-body">
                             <ul>
@@ -27,9 +27,9 @@
                                     if (currentUser.Roles.Intersect(subMenuItem.UserRoles).Any())
                                     {
                                         <li>
-                                            <a href="@subMenuItem.Link" id="@string.Format("ancr{0}", subMenuItem.DisplayName.Replace(" ", ""))">
-                                                @subMenuItem.DisplayName
+                                            <a href="@subMenuItem.Link" id="@string.Format("ancr{0}", subMenuItem.DisplayName.Replace(" ", ""))" style="padding-left: 48px;">
                                                 <i class="material-icons">@subMenuItem.MaterialIcon</i>
+                                                @subMenuItem.DisplayName
                                             </a>
                                         </li>
                                     }
@@ -43,8 +43,8 @@
         else
         {
             <li>
-                <a href="@menuItem.Link" id="@string.Format("ancr{0}", menuItem.DisplayName.Replace(" ", ""))" class="collapsible-header">
-                    <i class="material-icons">@menuItem.MaterialIcon</i>
+                <a href="@menuItem.Link" id="@string.Format("ancr{0}", menuItem.DisplayName.Replace(" ", ""))" style="padding: 0 32px; display: flex; align-items: center; height: 48px;">
+                    <i class="material-icons" style="margin-right: 32px;">@menuItem.MaterialIcon</i>
                     @menuItem.DisplayName
                 </a>
             </li>

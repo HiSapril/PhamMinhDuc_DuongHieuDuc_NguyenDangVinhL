@@ -5,12 +5,29 @@
 @{
     Layout = "_SecureLayout";
 }
+
+<style>
+    /* Fix for action buttons */
+    .btn-floating.btn-edit {
+        position: relative;
+        z-index: 10;
+        pointer-events: auto !important;
+    }
+    .btn-floating.btn-edit:hover {
+        transform: scale(1.1);
+        box-shadow: 0 5px 11px 0 rgba(0,0,0,0.18), 0 4px 15px 0 rgba(0,0,0,0.15);
+    }
+    table td {
+        position: relative;
+    }
+</style>
+
 <div>
     <div class="row"></div>
     <div class="row padding-left-20px padding-right-20px">
         <div class="row z-depth-3">
-            <div class="section white-text padding-left-10px blue-grey lighten-1">
-                <h5>Users</h5>
+            <div class="section white-text padding-left-10px blue-grey lighten-1" style="padding: 15px 20px;">
+                <h5 style="margin: 0;">Users</h5>
             </div>
         </div>
         <div class="divider"></div>
@@ -18,12 +35,12 @@
             @if (Model.Customers != null && Model.Customers.Any())
             {
                 @* Display List of Service Engineers *@
-                <table class="highlight centered" id="tblCustomers">
+                <table class="highlight centered responsive-table" id="tblCustomers">
                     <thead>
                         <tr>
                             <th data-field="Email">Email</th>
                             <th data-field="IsActive">Is Active</th>
-                            <th data-field="IsActiveImg">Status</th>
+                            <th data-field="Status">Status</th>
                             <th data-field="Actions">Actions</th>
                         </tr>
                     </thead>
@@ -35,9 +52,7 @@
                             var isActive = isActiveClaim != null ? Boolean.Parse(isActiveClaim.Value) : false;
                             <tr>
                                 <td>@user.Email</td>
-                                <td>
-                                    @isActive
-                                </td>
+                                <td>@isActive</td>
                                 <td>
                                     @if (isActive)
                                     {
@@ -49,8 +64,11 @@
                                     }
                                 </td>
                                 <td>
-                                    <a href="#!" class="btn-edit" data-email="@user.Email" data-isactive="@isActive" style="cursor: pointer;">
-                                        <i class="material-icons blue-text text-darken-2" style="pointer-events: none;">edit</i>
+                                    <a href="javascript:void(0);" 
+                                       class="btn-floating btn-small waves-effect waves-light teal edit-btn" 
+                                       onclick="editCustomer('@user.Email', @(isActive.ToString().ToLower()))"
+                                       title="Edit User">
+                                        <i class="material-icons">edit</i>
                                     </a>
                                 </td>
                             </tr>
@@ -78,8 +96,8 @@
     @* Details Section *@
     <div class="row z-depth-3">
         <div class="col s12 padding-0px">
-            <div class="section white-text padding-left-10px blue-grey lighten-1">
-                <h5>Service Engineer Details</h5>
+            <div class="section white-text padding-left-10px blue-grey lighten-1" style="padding: 15px 20px;">
+                <h5 style="margin: 0;">Service Engineer Details</h5>
             </div>
             <div class="divider"></div>
             <form asp-controller="Account" asp-action="Customers" method="post" class="col s12" id="frmUser">
@@ -117,24 +135,42 @@
 
 @section Scripts{
     <script>
-        $(document).ready(function () {
-            console.log('Customers page loaded');
+        // Global function to edit customer
+        function editCustomer(email, isActive) {
+            console.log('editCustomer called:', email, isActive);
             
-            // Initialize DataTable to show list of Engineers
+            $('#Registration_IsEdit').val('true');
+            
+            // Set cả 2 email fields
+            $('#Input_Registration_Email').val(email);
+            $('#Registration_Email').val(email);
+            $('#Input_Registration_Email').attr('disabled', 'disabled');
+            
+            $('#Registration_IsActive').prop('checked', isActive);
+            $('.btnSubmit').removeAttr('disabled');
+            M.updateTextFields();
+            
+            // Scroll to form
+            $('html, body').animate({
+                scrollTop: $("#frmUser").offset().top - 100
+            }, 500);
+        }
+        
+        $(document).ready(function() {
+            console.log('Initializing DataTable for Customers');
+            
+            // Initialize DataTable
             var table = $('#tblCustomers').DataTable({
                 'pageLength': 3,
-                // Number of records to be displayed per page
-                'lengthMenu': [[3, 5, 10, -1], [3, 5, 10, 'All']]
+                'lengthMenu': [[3, 5, 10, -1], [3, 5, 10, 'All']],
+                'columnDefs': [
+                    { 'visible': false, 'targets': 1 } // Hide the "Is Active" text column
+                ]
             });
             
-            console.log('DataTable initialized');
-            
-            // Set Styles for DataTable and Number of Records to be displayed in drop-down
+            // Set Styles for DataTable
             $('#tblCustomers').css('width', '100%');
             $('select[name=tblCustomers_length]').formSelect();
-            // Get the column API object
-            var isActiveColumn = table.column(1);
-            isActiveColumn.visible(false);
             $('.btnSubmit').attr('disabled', 'disabled');
 
             // Handle Reset functionality
@@ -151,69 +187,18 @@
                 $('.btnSubmit').removeAttr('disabled');
             }
 
-            // On click of Edit button - multiple event handlers for better compatibility
-            $('#tblCustomers tbody').on('click', 'a.btn-edit', function (e) {
-                console.log('Edit button clicked (a tag)');
-                e.preventDefault();
-                e.stopPropagation();
-                handleEdit($(this));
-            });
-            
-            $('#tblCustomers tbody').on('click', 'i.material-icons', function (e) {
-                console.log('Edit icon clicked');
-                e.preventDefault();
-                e.stopPropagation();
-                handleEdit($(this).closest('a.btn-edit'));
-            });
-            
-            $('#tblCustomers tbody').on('click', 'td', function (e) {
-                var editBtn = $(this).find('a.btn-edit');
-                if (editBtn.length > 0) {
-                    console.log('TD clicked with edit button');
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleEdit(editBtn);
-                }
-            });
-            
-            function handleEdit($element) {
-                try {
-                    var email = $element.data('email');
-                    var isActive = $element.data('isactive');
-                    
-                    console.log('Email:', email, 'IsActive:', isActive);
-                    
-                    if (!email) {
-                        console.error('No email found');
-                        return;
-                    }
-                    
-                    $('#Registration_IsEdit').val('true');
-                    $('#Input_Registration_Email').val(email);
-                    $('#Input_Registration_Email').attr('disabled', 'disabled');
-                    
-                    // Handle boolean conversion properly
-                    var isActiveValue = (isActive === true || isActive === 'True' || isActive === 'true');
-                    $('#Registration_IsActive').prop('checked', isActiveValue);
-                    
-                    $('.btnSubmit').removeAttr('disabled');
-                    M.updateTextFields();
-                    
-                    // Scroll to form
-                    $('html, body').animate({
-                        scrollTop: $("#frmUser").offset().top - 100
-                    }, 500);
-                    
-                    console.log('Form populated successfully');
-                } catch (error) {
-                    console.error('Error in edit handler:', error);
-                }
-            }
-
             // Set hidden Email field to correct value from UI field
             $(document).on('click', '.btnSubmit', function () {
-                $('#Registration_Email').val($('#Input_Registration_Email').val());
+                // Đảm bảo cả 2 email fields đều có giá trị
+                var emailValue = $('#Input_Registration_Email').val();
+                $('#Registration_Email').val(emailValue);
+                
+                // Enable email field trước khi submit
+                $('#Input_Registration_Email').removeAttr('disabled');
+                
                 M.updateTextFields();
+                
+                console.log('Submitting with email:', emailValue);
             });
         });
     </script>
