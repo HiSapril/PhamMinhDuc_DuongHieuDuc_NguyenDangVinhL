@@ -181,11 +181,11 @@
                         <input asp-for="Registration.UserName" class="validate" />
                         <label asp-for="Registration.UserName"></label>
                     </div>
-                    <div class="input-field col s4">
+                    <div class="input-field col s4 password-field">
                         <input asp-for="Registration.Password" class="validate" />
                         <label asp-for="Registration.Password"></label>
                     </div>
-                    <div class="input-field col s4">
+                    <div class="input-field col s4 confirm-password-field">
                         <input asp-for="Registration.ConfirmPassword" class="validate" />
                         <label asp-for="Registration.ConfirmPassword"></label>
                     </div>
@@ -258,6 +258,11 @@
             $('#Registration_UserName').addClass('valid');
             $('#Registration_IsActive').prop('checked', isActive);
             $('#Registration_IsEdit').val('true');
+            
+            // Ẩn password fields khi edit
+            $('.password-field').hide();
+            $('.confirm-password-field').hide();
+            
             $('.btnSubmit').text('Save');
             M.updateTextFields();
             
@@ -289,6 +294,10 @@
                 $('#Input_Registration_Email').removeAttr('disabled');
                 $('.btnSubmit').text('Create');
                 $('#Registration_IsEdit').val('false');
+                
+                // Hiện lại password fields khi reset
+                $('.password-field').show();
+                $('.confirm-password-field').show();
             });
 
             // This is required to disable Email filed on Server-side model validation failure.

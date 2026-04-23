@@ -11,7 +11,7 @@ namespace ASC.DataAccess
 {
     public class UnitOfWork : IUnitOfWork
     {
-        private Dictionary<string, object> _repositories;
+        private Dictionary<string, object> _repositories = new Dictionary<string, object>();
         private DbContext _dbContext;
 
         public UnitOfWork(DbContext dbContext)
@@ -51,7 +51,9 @@ namespace ASC.DataAccess
             var repositoryType = typeof(Repository<>);
             var repositoryInstance = Activator.CreateInstance(repositoryType.MakeGenericType(typeof(T)), _dbContext);
 
-            _repositories.Add(type, repositoryInstance);
+            if (repositoryInstance != null)
+                _repositories.Add(type, repositoryInstance);
+            
             return (IRepository<T>)_repositories[type];
         }
     }

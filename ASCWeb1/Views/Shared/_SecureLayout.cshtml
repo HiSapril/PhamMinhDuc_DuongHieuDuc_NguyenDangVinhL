@@ -6,7 +6,7 @@
 
 @{
     Layout = "_MasterLayout";
-    var currentUser = UserHttpContext.HttpContext.User.GetCurrentUserDetails();
+    var currentUser = UserHttpContext.HttpContext?.User.GetCurrentUserDetails();
 }
 
 <header class="secureLayout">
@@ -37,10 +37,10 @@
                          style="width: 64px; height: 64px; object-fit: cover;">
                 </a>
                 <a href="/Accounts/Account/Profile" style="margin-top: 8px; display: block;">
-                    <span class="white-text name" style="font-size: 16px; font-weight: 500;">@currentUser.Name</span>
+                    <span class="white-text name" style="font-size: 16px; font-weight: 500;">@(currentUser?.Name ?? "User")</span>
                 </a>
                 <a href="/Accounts/Account/Profile" style="margin-top: 4px; display: block;">
-                    <span class="white-text email" style="font-size: 14px; opacity: 0.9;">@currentUser.Email</span>
+                    <span class="white-text email" style="font-size: 14px; opacity: 0.9;">@(currentUser?.Email ?? "")</span>
                 </a>
             </div>
         </li>
@@ -67,7 +67,7 @@
     </div>
 </main>
 
-<footer class="page-footer blue-grey lighten-1 secureLayout" style="@(ViewData["HideFooter"] != null && (bool)ViewData["HideFooter"] ? "display:none;" : "")">
+<footer class="page-footer blue-grey lighten-1 secureLayout" style="@(ViewData["HideFooter"] != null && ViewData["HideFooter"] is bool hideFooter && hideFooter ? "display:none;" : "")">
     <div class="container">
         <div class="row">
             <div class="col l6 s12">

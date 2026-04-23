@@ -9,11 +9,11 @@ namespace ASC.Utilities
 {
     public class CurrentUser
     {
-        public string Name { get; set; }
-        public string Email { get; set; }
+        public required string Name { get; set; }
+        public required string Email { get; set; }
         public bool IsActive { get; set; }
-        public string[] Roles { get; set; }
-        public string ProfilePictureUrl { get; set; }
+        public required string[] Roles { get; set; }
+        public required string ProfilePictureUrl { get; set; }
     }
 
     

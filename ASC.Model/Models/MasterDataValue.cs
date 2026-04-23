@@ -17,9 +17,11 @@ namespace ASC.Model.Models
             // Lưu ý: Trong ảnh, tham số 'value' chưa được gán vào property nào, 
             // thông thường nó sẽ được gán cho property 'Name'.
             this.Name = value;
+            this.CreatedBy = string.Empty;
+            this.UpdatedBy = string.Empty;
         }
 
         public bool IsActive { get; set; }
-        public string Name { get; set; }
+        public required string Name { get; set; }
     }
 }

@@ -4,12 +4,12 @@
 @inject IHttpContextAccessor UserHttpContext
 
 @{
-    var currentUser = UserHttpContext.HttpContext.User.GetCurrentUserDetails();
+    var currentUser = UserHttpContext.HttpContext?.User.GetCurrentUserDetails();
 }
 
 @foreach (var menuItem in Model.MenuItems)
 {
-    if (currentUser.Roles.Intersect(menuItem.UserRoles).Any())
+    if (currentUser?.Roles.Intersect(menuItem.UserRoles).Any() == true)
     {
         if (menuItem.IsNested)
         {
@@ -24,7 +24,7 @@
                             <ul>
                                 @foreach (var subMenuItem in menuItem.NestedItems.OrderBy(p => p.Sequence).ToList())
                                 {
-                                    if (currentUser.Roles.Intersect(subMenuItem.UserRoles).Any())
+                                    if (currentUser?.Roles.Intersect(subMenuItem.UserRoles).Any() == true)
                                     {
                                         <li>
                                             <a href="@subMenuItem.Link" id="@string.Format("ancr{0}", subMenuItem.DisplayName.Replace(" ", ""))" style="padding-left: 48px;">

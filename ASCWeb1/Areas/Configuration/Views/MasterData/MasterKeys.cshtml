@@ -1,0 +1,245 @@
+@model ASCWeb1.Areas.Configuration.Models.MasterKeysViewModel
+
+@{
+    Layout = "_SecureLayout";
+}
+
+<div class="row"></div>
+<div class="row padding-top-20px padding-left-20px padding-right-20px">
+    <div class="row z-depth-1">
+        <div class="section white-text padding-left-10px blue-grey lighten-1">
+            <h5>Master Keys</h5>
+        </div>
+        <div class="divider"></div>
+        <div class="col s12 padding-bottom-15px">
+            @if (Model.MasterKeys != null)
+            {
+                @* Display List of Master Keys *@
+                <table class="highlight centered" id="tblMasterKeys">
+                    <thead>
+                        <tr>
+                            <th data-field="RowKey">Row Key</th>
+                            <th data-field="PartitionKey">Master Key/Partition Key</th>
+                            <th data-field="Name">Name</th>
+                            <th data-field="IsActive">Is Active</th>
+                            <th data-field="IsActiveImg">Is Active</th>
+                            <th data-field="Actions">Edit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var masterKey in Model.MasterKeys)
+                        {
+                            <tr>
+                                <td>@masterKey.RowKey</td>
+                                <td>@masterKey.PartitionKey</td>
+                                <td>@masterKey.Name</td>
+                                <td>@masterKey.IsActive</td>
+                                <td>
+                                    @if (masterKey.IsActive)
+                                    {
+                                        <i class="material-icons green-text">check_circle</i>
+                                    }
+                                    else
+                                    {
+                                        <i class="material-icons red-text">cancel</i>
+                                    }
+                                </td>
+                                <td>
+                                    <i class="small material-icons edit cursor-hand">
+                                        mode_edit
+                                    </i>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+            else
+            {
+                @* In case of No records, display no records message *@
+                <div class="card blue-grey lighten-1">
+                    <div class="card-content white-text">
+                        <span class="card-title">No Service Engineers!!!</span>
+                        <p>
+                            No Master Keys found, please add a Master Key to system.
+                        </p>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+<div class="row"></div>
+
+@* Details Section *@
+<div class="row z-depth-1">
+    <div class="col s12 padding-8px">
+        <div class="section white-text padding-left-10px blue-grey lighten-1">
+            <h5>Master Key Details</h5>
+        </div>
+        <div class="divider"></div>
+        <form asp-controller="MasterData" asp-action="MasterKeys" method="post"
+              class="col s12" id="formMasterKey">
+            <input type="hidden" asp-for="IsEdit" />
+            <input type="hidden" asp-for="MasterKeyInContext.RowKey" />
+            <input type="hidden" asp-for="MasterKeyInContext.PartitionKey" />
+            
+            <div class="row" style="margin-top: 20px;">
+                <div class="input-field col s4">
+                    <input asp-for="MasterKeyInContext.RowKey" id="Input_MasterKey_RowKey" disabled="disabled" />
+                    <label asp-for="MasterKeyInContext.RowKey"></label>
+                </div>
+                <div class="input-field col s4">
+                    <input asp-for="MasterKeyInContext.Name" class="validate" />
+                    <label asp-for="MasterKeyInContext.Name"></label>
+                </div>
+                <div class="input-field col s4">
+                    <div class="switch">
+                        <label>
+                            Is Active
+                            <input asp-for="MasterKeyInContext.IsActive" type="checkbox" class="validate" />
+                            <span class="lever"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="input-field col s12 right-align">
+                    <button class="btn waves-effect waves-light teal btnSubmit"
+                            type="submit" name="action">
+                        CREATE
+                        <i class="material-icons right">send</i>
+                    </button>
+                    <button class="btn waves-effect waves-light red reset" type="button" name="action">
+                        RESET
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+    <div class="row col s12 right-align" asp-validation-summary="All">
+    </div>
+</div>
+
+@section Scripts{
+    <style>
+        /* Ensure cursor changes on hover */
+        .cursor-hand {
+            cursor: pointer !important;
+        }
+        .edit:hover {
+            opacity: 0.7;
+            transform: scale(1.1);
+            transition: all 0.2s;
+        }
+    </style>
+    <script>
+        $(document).ready(function () {
+            console.log('🔧 MasterKeys page loaded');
+            
+            // Initialize DataTable to show list of Engineers
+            var table = $('#tblMasterKeys').DataTable({
+                'pageLength': 3,
+                // Number of records to be displayed per page
+                'lengthMenu': [[3, 5, 10, -1], [3, 5, 10, 'All']]
+            });
+            
+            console.log('✅ DataTable initialized with', table.rows().count(), 'rows');
+            
+            // Set Styles for DataTable and Number of Records to be displayed in dropdown
+            $('#tblMasterKeys').css("width", "100%");
+            $('select[name="tblMasterKeys_length"]').formSelect();
+            
+            // Get the column API object
+            var partitionKeyColumn = table.column(1);
+            partitionKeyColumn.visible(false);
+            var isActiveColumn = table.column(3);
+            isActiveColumn.visible(false);
+            
+            // Debug: Check if edit icons exist
+            console.log('📝 Number of edit icons found:', $('.edit').length);
+            
+            // Handle Reset functionality
+            $(document).on("click", ".reset", function () {
+                console.log('🔄 Reset clicked');
+                $('#formMasterKey')[0].reset();
+                $('.btnSubmit').text('CREATE');
+                $('#IsEdit').val('False');
+                $('#MasterKeyInContext_RowKey').val('');
+                $('#Input_MasterKey_RowKey').val('');
+                $('#MasterKeyInContext_PartitionKey').val('');
+                $('#MasterKeyInContext_Name').val('');
+                $('#MasterKeyInContext_Name').removeClass('valid');
+                $('#MasterKeyInContext_IsActive').prop('checked', false);
+                M.updateTextFields();
+            });
+            
+            // On click of Edit icon, populate the details section with details of service engineer
+            $(document).on('click', '.edit', function (e) {
+                console.log('✏️ Edit icon clicked!');
+                e.preventDefault();
+                e.stopPropagation();
+                
+                try {
+                    var row = $(this).closest('tr');
+                    console.log('📍 Row found:', row.length > 0);
+                    
+                    var user = $('#tblMasterKeys').DataTable().row(row).data();
+                    console.log('📊 Row data:', user);
+                    
+                    if (!user || user.length === 0) {
+                        console.error('❌ No data found for this row');
+                        alert('Error: Cannot load data for this row. Please refresh the page.');
+                        return;
+                    }
+                    
+                    $('#IsEdit').val('True');
+                    
+                    // Map Row Key
+                    $('#MasterKeyInContext_RowKey').val(user[0]);
+                    $('#Input_MasterKey_RowKey').val(user[0]);
+                    console.log('✅ RowKey set:', user[0]);
+                    
+                    // Map Partition Key
+                    $('#MasterKeyInContext_PartitionKey').val(user[1]);
+                    console.log('✅ PartitionKey set:', user[1]);
+                    
+                    // Map Name
+                    $('#MasterKeyInContext_Name').val(user[2]);
+                    $('#MasterKeyInContext_Name').addClass('valid');
+                    console.log('✅ Name set:', user[2]);
+                    
+                    // Map IsActive - handle both string and boolean values
+                    var isActiveValue = user[3];
+                    var isChecked = (isActiveValue === true || isActiveValue === 'True' || isActiveValue === 'true');
+                    $('#MasterKeyInContext_IsActive').prop('checked', isChecked);
+                    console.log('✅ IsActive set:', isChecked);
+                    
+                    $('.btnSubmit').text('SAVE');
+                    M.updateTextFields();
+                    
+                    // Scroll to form
+                    $('html, body').animate({
+                        scrollTop: $("#formMasterKey").offset().top - 100
+                    }, 500);
+                    
+                    console.log('✅ Edit operation completed successfully');
+                } catch (error) {
+                    console.error('❌ Error in edit handler:', error);
+                    alert('Error: ' + error.message);
+                }
+            });
+            
+            // Debug: Test click handler attachment
+            setTimeout(function() {
+                console.log('🧪 Testing edit icon clickability...');
+                var editIcons = $('.edit');
+                editIcons.each(function(index) {
+                    var hasClickEvent = $._data(this, 'events');
+                    console.log('Icon', index, 'has events:', hasClickEvent !== undefined);
+                });
+            }, 1000);
+        });
+    </script>
+}

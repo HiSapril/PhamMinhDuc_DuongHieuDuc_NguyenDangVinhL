@@ -4,7 +4,7 @@
 
 @{
     Layout = "_MasterLayout";
-    var currentUser = UserHttpContext.HttpContext.User.GetCurrentUserDetails();
+    var currentUser = UserHttpContext.HttpContext?.User.GetCurrentUserDetails();
 }
 
 <header>
@@ -50,10 +50,10 @@
                                  style="width: 64px; height: 64px; object-fit: cover;">
                         </a>
                         <a href="#" style="margin-top: 8px; display: block;">
-                            <span class="white-text name" style="font-size: 16px; font-weight: 500;">@currentUser.Name</span>
+                            <span class="white-text name" style="font-size: 16px; font-weight: 500;">@(currentUser?.Name ?? "User")</span>
                         </a>
                         <a href="#" style="margin-top: 4px; display: block;">
-                            <span class="white-text email" style="font-size: 14px; opacity: 0.9;">@currentUser.Email</span>
+                            <span class="white-text email" style="font-size: 14px; opacity: 0.9;">@(currentUser?.Email ?? "")</span>
                         </a>
                     </div>
                 </li>

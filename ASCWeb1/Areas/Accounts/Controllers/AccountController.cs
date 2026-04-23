@@ -53,10 +53,16 @@ namespace ASCWeb1.Areas.Accounts.Controllers
                 // update user
                 // update claims IsActive
                 var user = await _userManager.FindByEmailAsync(customer.Registration.Email);
-                var identity = await _userManager.GetClaimsAsync(user);
-                var isActiveClaim = identity.SingleOrDefault(p => p.Type == "IsActive");
-                var removeClaimResult = await _userManager.RemoveClaimAsync(user, isActiveClaim);
-                var addClaimResult = await _userManager.AddClaimAsync(user, new System.Security.Claims.Claim(isActiveClaim.Type, customer.Registration.IsActive.ToString()));
+                if (user != null)
+                {
+                    var identity = await _userManager.GetClaimsAsync(user);
+                    var isActiveClaim = identity.SingleOrDefault(p => p.Type == "IsActive");
+                    if (isActiveClaim != null)
+                    {
+                        var removeClaimResult = await _userManager.RemoveClaimAsync(user, isActiveClaim);
+                        var addClaimResult = await _userManager.AddClaimAsync(user, new System.Security.Claims.Claim(isActiveClaim.Type, customer.Registration.IsActive.ToString()));
+                    }
+                }
             }
 
             if (customer.Registration.IsActive)
@@ -145,6 +151,10 @@ namespace ASCWeb1.Areas.Accounts.Controllers
         public IActionResult Profile()
         {
             var user = HttpContext.User.GetCurrentUserDetails();
+            if (user == null)
+            {
+                return RedirectToAction("Login", "Account", new { area = "Identity" });
+            }
             return View(new ProfileModel() { UserName = user.Name });
         }
 
@@ -158,7 +168,18 @@ namespace ASCWeb1.Areas.Accounts.Controllers
             }
 
             // Update UserName
-            var user = await _userManager.FindByEmailAsync(HttpContext.User.GetCurrentUserDetails().Email);
+            var currentUser = HttpContext.User.GetCurrentUserDetails();
+            if (currentUser == null)
+            {
+                return RedirectToAction("Login", "Account", new { area = "Identity" });
+            }
+            
+            var user = await _userManager.FindByEmailAsync(currentUser.Email);
+            if (user == null)
+            {
+                return RedirectToAction("Login", "Account", new { area = "Identity" });
+            }
+            
             user.UserName = profile.UserName;
             IdentityResult result = await _userManager.UpdateAsync(user);
             if (!result.Succeeded)

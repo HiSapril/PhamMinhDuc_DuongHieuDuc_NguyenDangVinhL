@@ -60,7 +60,7 @@ namespace ASC.Tests.TestUtilities
             }
             else
             {
-                value = null;
+                value = Array.Empty<byte>();
                 return false;
             }
         }

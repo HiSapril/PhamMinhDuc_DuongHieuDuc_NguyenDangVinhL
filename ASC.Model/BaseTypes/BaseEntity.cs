@@ -8,13 +8,13 @@ namespace ASC.Model
 {
     public class BaseEntity
     {
-        public string PartitionKey { get; set; }
-        public string RowKey { get; set; }
+        public required string PartitionKey { get; set; }
+        public required string RowKey { get; set; }
         public bool IsDeleted { get; set; }
         public DateTime CreatedDate { get; set; }
         public DateTime UpdatedDate { get; set; }
-        public string CreatedBy { get; set; }
-        public string UpdatedBy { get; set; }
+        public required string CreatedBy { get; set; }
+        public required string UpdatedBy { get; set; }
 
         public BaseEntity()
         {

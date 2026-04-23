@@ -2,7 +2,7 @@
 @{
     var currentUser = User.GetCurrentUserDetails();
     // User role (khách hàng) dùng layout đơn giản, Admin/Engineer dùng layout đầy đủ
-    Layout = currentUser.Roles.Contains("User") && !currentUser.Roles.Contains("Admin") && !currentUser.Roles.Contains("Engineer") 
+    Layout = currentUser?.Roles.Contains("User") == true && currentUser?.Roles.Contains("Admin") != true && currentUser?.Roles.Contains("Engineer") != true 
         ? "_UserLayout" 
         : "_SecureLayout";
 }

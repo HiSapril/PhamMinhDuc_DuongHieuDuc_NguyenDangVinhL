@@ -18,13 +18,13 @@ namespace ASC.DataAccess
             dbContext = _dbContext;
         }
 
-        public async Task<T> AddAsync(T entity)
+        public async Task<T?> AddAsync(T entity)
         {
             var entityToInsert = entity as BaseEntity;
             entityToInsert.CreatedDate = DateTime.UtcNow;
             entityToInsert.UpdatedDate = DateTime.UtcNow;
-            var result = dbContext.Set<T>().AddAsync(entity).Result;
-            return result as T;
+            var result = await dbContext.Set<T>().AddAsync(entity);
+            return result.Entity;
         }
 
         public void Update(T entity)
@@ -42,10 +42,10 @@ namespace ASC.DataAccess
             dbContext.Set<T>().Remove(entity);
         }
 
-        public async Task<T> FindAsync(string partitionKey, string rowKey)
+        public async Task<T?> FindAsync(string partitionKey, string rowKey)
         {
-            var result = dbContext.Set<T>().FindAsync(partitionKey, rowKey).Result;
-            return result as T;
+            var result = await dbContext.Set<T>().FindAsync(partitionKey, rowKey);
+            return result;
         }
 
         public async Task<IEnumerable<T>> FindAllByPartitionKeyAsync(string partitionKey)

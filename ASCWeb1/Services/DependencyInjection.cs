@@ -37,6 +37,12 @@ namespace ASCWeb1.Services
             // Đăng ký UnitOfWork
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 
+            // Đăng ký MasterDataOperations
+            services.AddScoped<ASC.Business.Interfaces.IMasterDataOperations, ASC.Business.MasterDataOperations>();
+
+            // Đăng ký AutoMapper
+            services.AddAutoMapper(typeof(ApplicationDbContext));
+
             // Đăng ký các dịch vụ Identity
             services.AddTransient<ASCWeb1.Services.IEmailSender, AuthMessageSender>();
             services.AddTransient<Microsoft.AspNetCore.Identity.UI.Services.IEmailSender, AuthMessageSender>();

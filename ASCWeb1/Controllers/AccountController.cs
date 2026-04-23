@@ -89,6 +89,11 @@ namespace ASCWeb1.Controllers
                     values: new { area = "Identity", code = code },
                     protocol: Request.Scheme);
 
+                if (callbackUrl == null)
+                {
+                    return BadRequest("Failed to generate reset password URL");
+                }
+
                 Console.WriteLine($"[RESET PASSWORD] Callback URL: {callbackUrl}");
 
                 var emailBody = $@"

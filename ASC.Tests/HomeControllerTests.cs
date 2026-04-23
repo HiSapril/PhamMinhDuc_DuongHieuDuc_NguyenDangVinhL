@@ -30,7 +30,18 @@ namespace ASC.Tests
 
             optionsMock.Setup(ap => ap.Value).Returns(new ApplicationSettings
             {
-                ApplicationTitle = "ASC"
+                ApplicationTitle = "ASC",
+                AdminEmail = "admin@test.com",
+                AdminName = "Admin",
+                AdminPassword = "Admin123!",
+                Roles = "Admin,User,Engineer",
+                EngineerEmail = "engineer@test.com",
+                EngineerName = "Engineer",
+                EngineerPassword = "Engineer123!",
+                SMTPServer = "smtp.test.com",
+                SMTPPort = 587,
+                SMTPAccount = "test@test.com",
+                SMTPPassword = "password"
             });
         }
 
@@ -52,6 +63,7 @@ namespace ASC.Tests
             controller.ControllerContext.HttpContext = mockHttpContext.Object;
 
             var viewResult = controller.Index() as ViewResult;
+            Assert.NotNull(viewResult);
             Assert.Null(viewResult.ViewData.Model);
         }
 
@@ -62,6 +74,7 @@ namespace ASC.Tests
             controller.ControllerContext.HttpContext = mockHttpContext.Object;
 
             var viewResult = controller.Index() as ViewResult;
+            Assert.NotNull(viewResult);
             Assert.Equal(0, viewResult.ViewData.ModelState.ErrorCount);
         }
 

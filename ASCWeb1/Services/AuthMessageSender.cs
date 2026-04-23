@@ -53,7 +53,7 @@ namespace ASCWeb1.Services
                     // Enable logging for debugging
                     client.ServerCertificateValidationCallback = (s, c, h, e) => true;
 
-                    await client.ConnectAsync(smtpServer, int.Parse(smtpPort), MailKit.Security.SecureSocketOptions.StartTls);
+                    await client.ConnectAsync(smtpServer, int.Parse(smtpPort ?? "587"), MailKit.Security.SecureSocketOptions.StartTls);
                     _logger.LogInformation("Đã kết nối SMTP server thành công");
 
                     await client.AuthenticateAsync(smtpAccount, smtpPassword);

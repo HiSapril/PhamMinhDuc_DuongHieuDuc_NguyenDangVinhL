@@ -32,29 +32,29 @@ namespace ASCWeb1.Areas.Identity.Pages.Account
         }
 
         [BindProperty]
-        public InputModel Input { get; set; }
+        public required InputModel Input { get; set; }
 
-        public IList<AuthenticationScheme> ExternalLogins { get; set; }
-        public string ReturnUrl { get; set; }
+        public required IList<AuthenticationScheme> ExternalLogins { get; set; }
+        public required string ReturnUrl { get; set; }
 
         [TempData]
-        public string ErrorMessage { get; set; }
+        public string? ErrorMessage { get; set; }
 
         public class InputModel
         {
             [Required(ErrorMessage = "Email không được để trống")]
             [EmailAddress(ErrorMessage = "Định dạng Email không hợp lệ")]
-            public string Email { get; set; }
+            public required string Email { get; set; }
 
             [Required(ErrorMessage = "Mật khẩu không được để trống")]
             [DataType(DataType.Password)]
-            public string Password { get; set; }
+            public required string Password { get; set; }
 
             [Display(Name = "Ghi nhớ đăng nhập?")]
             public bool RememberMe { get; set; }
         }
 
-        public async Task OnGetAsync(string returnUrl = null)
+        public async Task OnGetAsync(string? returnUrl = null)
         {
             if (!string.IsNullOrEmpty(ErrorMessage))
             {
@@ -71,7 +71,7 @@ namespace ASCWeb1.Areas.Identity.Pages.Account
             ReturnUrl = returnUrl;
         }
 
-        public async Task<IActionResult> OnPostAsync(string returnUrl = null)
+        public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
         {
             returnUrl ??= Url.Content("~/");
 
@@ -82,7 +82,7 @@ namespace ASCWeb1.Areas.Identity.Pages.Account
                 if (user != null)
                 {
                     // 2. Lấy chuỗi PasswordHash ĐANG CÓ trong Database
-                    var hashInDb = user.PasswordHash;
+                    var hashInDb = user.PasswordHash ?? string.Empty;
 
                     // 3. TỰ HASH mật khẩu người dùng vừa nhập bằng bộ máy của hệ thống hiện tại
                     var hashInput = _userManager.PasswordHasher.HashPassword(user, Input.Password);
@@ -112,7 +112,8 @@ namespace ASCWeb1.Areas.Identity.Pages.Account
                     _logger.LogInformation("Đăng nhập thành công!");
 
                     // Lưu Session
-                    HttpContext.Session.SetString("CurrentUserEmail", user.Email);
+                    if (user?.Email != null)
+                        HttpContext.Session.SetString("CurrentUserEmail", user.Email);
 
                     return RedirectToAction("Dashboard", "Dashboard", new { area = "ServiceRequests" });
                 }

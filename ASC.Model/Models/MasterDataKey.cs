@@ -14,9 +14,12 @@ namespace ASC.Model.Models
         {
             this.RowKey = Guid.NewGuid().ToString();
             this.PartitionKey = key;
+            this.Name = string.Empty;
+            this.CreatedBy = string.Empty;
+            this.UpdatedBy = string.Empty;
         }
 
         public bool IsActive { get; set; }
-        public string Name { get; set; }
+        public required string Name { get; set; }
     }
 }

@@ -13,9 +13,9 @@ namespace ASC.Utilities
         }
 
         // Đọc đối tượng từ Session
-        public static T GetSession<T>(this ISession session, string key)
+        public static T? GetSession<T>(this ISession session, string key)
         {
-            byte[] value;
+            byte[]? value;
             if (session.TryGetValue(key, out value))
             {
                 var jsonData = Encoding.ASCII.GetString(value);
