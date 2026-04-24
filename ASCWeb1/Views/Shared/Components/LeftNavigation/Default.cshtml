@@ -1,0 +1,53 @@
+@using Microsoft.AspNetCore.Http
+@using ASC.Utilities
+@model ASCWeb1.Models.NavigationMenu
+@inject IHttpContextAccessor UserHttpContext
+
+@{
+    var currentUser = UserHttpContext.HttpContext?.User.GetCurrentUserDetails();
+}
+
+@foreach (var menuItem in Model.MenuItems)
+{
+    if (currentUser?.Roles.Intersect(menuItem.UserRoles).Any() == true)
+    {
+        if (menuItem.IsNested)
+        {
+            <li>
+                <ul class="collapsible collapsible-accordion">
+                    <li>
+                        <a class="collapsible-header" id="@string.Format("ancr{0}", menuItem.DisplayName.Replace(" ", ""))" style="padding-left: 32px;">
+                            <i class="material-icons">@menuItem.MaterialIcon</i>
+                            @menuItem.DisplayName
+                        </a>
+                        <div class="collapsible-body">
+                            <ul>
+                                @foreach (var subMenuItem in menuItem.NestedItems.OrderBy(p => p.Sequence).ToList())
+                                {
+                                    if (currentUser?.Roles.Intersect(subMenuItem.UserRoles).Any() == true)
+                                    {
+                                        <li>
+                                            <a href="@subMenuItem.Link" id="@string.Format("ancr{0}", subMenuItem.DisplayName.Replace(" ", ""))" style="padding-left: 48px;">
+                                                <i class="material-icons">@subMenuItem.MaterialIcon</i>
+                                                @subMenuItem.DisplayName
+                                            </a>
+                                        </li>
+                                    }
+                                }
+                            </ul>
+                        </div>
+                    </li>
+                </ul>
+            </li>
+        }
+        else
+        {
+            <li>
+                <a href="@menuItem.Link" id="@string.Format("ancr{0}", menuItem.DisplayName.Replace(" ", ""))" style="padding: 0 32px; display: flex; align-items: center; height: 48px;">
+                    <i class="material-icons" style="margin-right: 32px;">@menuItem.MaterialIcon</i>
+                    @menuItem.DisplayName
+                </a>
+            </li>
+        }
+    }
+}

@@ -1,0 +1,205 @@
+@using Microsoft.AspNetCore.Identity;
+@using System.Security.Claims;
+@model ASCWeb1.Areas.Accounts.Models.CustomerViewModel
+@inject UserManager<IdentityUser> userManager;
+@{
+    Layout = "_SecureLayout";
+}
+
+<style>
+    /* Fix for action buttons */
+    .btn-floating.btn-edit {
+        position: relative;
+        z-index: 10;
+        pointer-events: auto !important;
+    }
+    .btn-floating.btn-edit:hover {
+        transform: scale(1.1);
+        box-shadow: 0 5px 11px 0 rgba(0,0,0,0.18), 0 4px 15px 0 rgba(0,0,0,0.15);
+    }
+    table td {
+        position: relative;
+    }
+</style>
+
+<div>
+    <div class="row"></div>
+    <div class="row padding-left-20px padding-right-20px">
+        <div class="row z-depth-3">
+            <div class="section white-text padding-left-10px blue-grey lighten-1" style="padding: 15px 20px;">
+                <h5 style="margin: 0;">Users</h5>
+            </div>
+        </div>
+        <div class="divider"></div>
+        <div class="col s12 padding-bottom-15px">
+            @if (Model.Customers != null && Model.Customers.Any())
+            {
+                @* Display List of Service Engineers *@
+                <table class="highlight centered responsive-table" id="tblCustomers">
+                    <thead>
+                        <tr>
+                            <th data-field="Email">Email</th>
+                            <th data-field="IsActive">Is Active</th>
+                            <th data-field="Status">Status</th>
+                            <th data-field="Actions">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var user in Model.Customers)
+                        {
+                            var identity = await userManager.GetClaimsAsync(user);
+                            var isActiveClaim = identity.SingleOrDefault(p => p.Type == "IsActive");
+                            var isActive = isActiveClaim != null ? Boolean.Parse(isActiveClaim.Value) : false;
+                            <tr>
+                                <td>@user.Email</td>
+                                <td>@isActive</td>
+                                <td>
+                                    @if (isActive)
+                                    {
+                                        <i class="material-icons green-text">check_circle</i>
+                                    }
+                                    else
+                                    {
+                                        <i class="material-icons red-text">cancel</i>
+                                    }
+                                </td>
+                                <td>
+                                    <a href="javascript:void(0);" 
+                                       class="btn-floating btn-small waves-effect waves-light teal edit-btn" 
+                                       onclick="editCustomer('@user.Email', @(isActive.ToString().ToLower()))"
+                                       title="Edit User">
+                                        <i class="material-icons">edit</i>
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+            else
+            {
+                @* In case of No records, display no records message *@
+                <div class="card blue-grey lighten-1">
+                    <div class="card-content white-text">
+                        <span class="card-title">No Service Engineers!!!</span>
+                        <p>
+                            No Service Engineers found, please add a Service Engineer to system.
+                        </p>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+    <div class="row"></div>
+</div>
+
+    @* Details Section *@
+    <div class="row z-depth-3">
+        <div class="col s12 padding-0px">
+            <div class="section white-text padding-left-10px blue-grey lighten-1" style="padding: 15px 20px;">
+                <h5 style="margin: 0;">Service Engineer Details</h5>
+            </div>
+            <div class="divider"></div>
+            <form asp-controller="Account" asp-action="Customers" method="post" class="col s12" id="frmUser">
+                <input type="hidden" asp-for="Registration.IsEdit" />
+                <input type="hidden" asp-for="Registration.Email" />
+                <div class="input-field col s4">
+                    <input asp-for="Registration.Email" id="Input_Registration_Email" />
+                    <label asp-for="Registration.Email"></label>
+                </div>
+                <div class="input-field col s4">
+                    <div class="switch">
+                        <label>
+                            Is Active
+                            <input asp-for="Registration.IsActive" class="validate" />
+                            <span class="lever"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="input-field col s4 right-align">
+                    <button class="btn waves-effect waves-light btnSubmit" type="submit" name="action">
+                        Save
+                        <i class="material-icons right">send</i>
+                    </button>
+                    <button class="btn waves-effect waves-light reset red lighten-1" type="button" name="action">
+                        Reset
+                    </button>
+                </div>
+                <div class="row col s12 right-align" asp-validation-summary="All"></div>
+            </form>
+        </div>
+    </div>
+    <div class="row"></div>
+</div>
+
+
+@section Scripts{
+    <script>
+        // Global function to edit customer
+        function editCustomer(email, isActive) {
+            console.log('editCustomer called:', email, isActive);
+            
+            $('#Registration_IsEdit').val('true');
+            
+            // Set cả 2 email fields
+            $('#Input_Registration_Email').val(email);
+            $('#Registration_Email').val(email);
+            $('#Input_Registration_Email').attr('disabled', 'disabled');
+            
+            $('#Registration_IsActive').prop('checked', isActive);
+            $('.btnSubmit').removeAttr('disabled');
+            M.updateTextFields();
+            
+            // Scroll to form
+            $('html, body').animate({
+                scrollTop: $("#frmUser").offset().top - 100
+            }, 500);
+        }
+        
+        $(document).ready(function() {
+            console.log('Initializing DataTable for Customers');
+            
+            // Initialize DataTable
+            var table = $('#tblCustomers').DataTable({
+                'pageLength': 3,
+                'lengthMenu': [[3, 5, 10, -1], [3, 5, 10, 'All']],
+                'columnDefs': [
+                    { 'visible': false, 'targets': 1 } // Hide the "Is Active" text column
+                ]
+            });
+            
+            // Set Styles for DataTable
+            $('#tblCustomers').css('width', '100%');
+            $('select[name=tblCustomers_length]').formSelect();
+            $('.btnSubmit').attr('disabled', 'disabled');
+
+            // Handle Reset functionality
+            $(document).on('click', '.reset', function () {
+                $('#frmUser')[0].reset();
+                $('#Input_Registration_Email').removeAttr('disabled');
+                $('#Registration_IsEdit').val('false');
+                $('.btnSubmit').attr('disabled', 'disabled');
+            });
+
+            // This is required to disable Email filed on Server-side model validation failure.
+            if ($('#Registration_IsEdit').val() === 'true') {
+                $('#Input_Registration_Email').attr('disabled', 'disabled');
+                $('.btnSubmit').removeAttr('disabled');
+            }
+
+            // Set hidden Email field to correct value from UI field
+            $(document).on('click', '.btnSubmit', function () {
+                // Đảm bảo cả 2 email fields đều có giá trị
+                var emailValue = $('#Input_Registration_Email').val();
+                $('#Registration_Email').val(emailValue);
+                
+                // Enable email field trước khi submit
+                $('#Input_Registration_Email').removeAttr('disabled');
+                
+                M.updateTextFields();
+                
+                console.log('Submitting with email:', emailValue);
+            });
+        });
+    </script>
+}
