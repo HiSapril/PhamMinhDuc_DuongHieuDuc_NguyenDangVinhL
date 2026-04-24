@@ -1,0 +1,389 @@
+@model ASCWeb1.Areas.Configuration.Models.MasterValuesViewModel
+@{
+    Layout = "_SecureLayout";
+}
+
+@* Add AntiForgeryToken for AJAX calls *@
+@Html.AntiForgeryToken()
+
+<div class="row"></div>
+<div class="row padding-top-20px padding-left-20px padding-right-20px">
+    <div class="row z-depth-3">
+        <div class="section white-text padding-left-10px blue-grey lighten-1">
+            <h5>Master Values</h5>
+        </div>
+        <div class="divider"></div>
+        <div class="row" style="margin-bottom: 0;">
+            <div class="input-field col s4">
+                <select id="ddlMasterKeys">
+                    <option value="" disabled selected>Select Master Key</option>
+                    @if (ViewBag.MasterKeys != null)
+                    {
+                        var masterKeysList = ViewBag.MasterKeys as List<ASC.Model.Models.MasterDataKey>;
+                        if (masterKeysList != null && masterKeysList.Any())
+                        {
+                            foreach (var key in masterKeysList)
+                            {
+                                <option value="@key.PartitionKey">@key.Name (@key.PartitionKey)</option>
+                            }
+                            <script>console.log('✅ ViewBag Master Keys count: @masterKeysList.Count');</script>
+                        }
+                        else
+                        {
+                            <script>console.log('⚠️ ViewBag.MasterKeys is EMPTY! Please create Master Keys first.');</script>
+                        }
+                    }
+                    else
+                    {
+                        <script>console.log('❌ ViewBag.MasterKeys is NULL!');</script>
+                    }
+                </select>
+                <label>Master Key</label>
+            </div>
+            @if (ViewBag.MasterKeys == null || !((ViewBag.MasterKeys as List<ASC.Model.Models.MasterDataKey>)?.Any() ?? false))
+            {
+                <div class="col s8">
+                    <div class="card-panel orange lighten-4">
+                        <span class="orange-text text-darken-4">
+                            <i class="material-icons left">warning</i>
+                            No Master Keys found! Please create Master Keys first at 
+                            <a href="@Url.Action("MasterKeys", "MasterData")" class="orange-text text-darken-4" style="text-decoration: underline;">
+                                <strong>Master Keys page</strong>
+                            </a>
+                        </span>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="col s12 padding-bottom-15px">
+            @* Display List of Master Values *@
+            <table class="highlight centered" id="tblMasterValues">
+                <thead>
+                    <tr>
+                        <th data-field="RowKey">Row Key</th>
+                        <th data-field="PartitionKey">Partition Key</th>
+                        <th data-field="Name">Name</th>
+                        <th data-field="IsActive">Is Active</th>
+                        <th data-field="Actions">Edit</th>
+                    </tr>
+                </thead>
+            </table>
+        </div>
+    </div>
+</div>
+<div class="row"></div>
+
+<!-- Details Section -->
+<div class="row padding-left-20px padding-right-20px">
+    <div class="row z-depth-3">
+        <div class="col s12" style="padding: 0;">
+            <div class="section white-text padding-left-10px blue-grey lighten-1">
+                <h5>Master Value Details</h5>
+            </div>
+        </div>
+        <div class="divider"></div>
+        <form id="formMasterValue">
+            <input type="hidden" id="IsEdit" />
+            <input type="hidden" id="MasterValueInContext_RowKey" />
+            <input type="hidden" id="MasterValueInContext_PartitionKey" />
+            <div class="row" style="margin-bottom: 10px; padding: 0 20px;">
+                <div class="input-field col s4">
+                    <input id="Input_MasterKey_RowKey" type="text" disabled="disabled" style="border-bottom: 1px dotted #9e9e9e !important;" />
+                    <label class="active">RowKey</label>
+                </div>
+                <div class="input-field col s4">
+                    <select id="select_MasterValueInContext_PartitionKey" required>
+                        <option value="" disabled selected>Select Partition Key</option>
+                        @if (ViewBag.MasterKeys != null)
+                        {
+                            var masterKeysList = ViewBag.MasterKeys as List<ASC.Model.Models.MasterDataKey>;
+                            if (masterKeysList != null)
+                            {
+                                foreach (var key in masterKeysList)
+                                {
+                                    <option value="@key.PartitionKey">@key.Name (@key.PartitionKey)</option>
+                                }
+                            }
+                        }
+                    </select>
+                    <label>Partition Key</label>
+                </div>
+                <div class="input-field col s4">
+                    <input id="MasterValueInContext_Name" type="text" class="validate" required />
+                    <label>Name</label>
+                </div>
+            </div>
+            <div class="row" style="padding: 0 20px; margin-bottom: 20px;">
+                <div class="col s12">
+                    <div class="switch">
+                        <label>
+                            Is Active
+                            <input id="MasterValueInContext_IsActive" type="checkbox" checked />
+                            <span class="lever cyan"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="row" style="padding: 0 20px; margin-bottom: 20px;">
+                <div class="col s12 right-align">
+                    <button class="btn waves-effect waves-light teal btnSubmit" type="button" style="margin-right: 10px;">
+                        SAVE
+                    </button>
+                    <button class="btn waves-effect waves-light red reset" type="button">
+                        RESET
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            // Need to pass Verification Token to get Request Validated for Forgery
+            var token = $('input[type=hidden][name=__RequestVerificationToken]', document).val();
+            console.log('🔐 AntiForgery Token:', token ? 'Found' : 'NOT FOUND!');
+            
+            $.ajaxSetup({
+                // Disable caching of AJAX responses
+                cache: false,
+                headers: { 'RequestVerificationToken': token }
+            });
+            
+            // Initialize DataTable to show list of Master Values
+            var table = $('#tblMasterValues').DataTable({
+                'pageLength': 3,
+                'lengthMenu': [[3, 5, 10, -1], [3, 5, 10, 'All']],
+                'columns': [
+                    { 'data': 'rowKey', 'defaultContent': '' },
+                    { 'data': 'partitionKey', 'defaultContent': '' },
+                    { 'data': 'name', 'defaultContent': '' },
+                    { 'data': 'isActive', 'defaultContent': false },
+                    { 'data': null, 'defaultContent': '' }
+                ],
+                "columnDefs": [
+                    {
+                        "targets": [3],
+                        "data": "isActive",
+                        "render": function (data, type, full) {
+                            if (data === true) {
+                                return '<i class="material-icons green-text">check_circle</i>';
+                            } else {
+                                return '<i class="material-icons red-text">cancel</i>';
+                            }
+                        }
+                    },
+                    {
+                        "targets": [4],
+                        "data": null,
+                        "render": function (data, type, full) {
+                            return '<a class="waves-effect waves-light btn-small teal edit" style="cursor: pointer;">Edit</a>';
+                        }
+                    }
+                ]
+            });
+            
+            // Set Styles for DataTable
+            $('#tblMasterValues').css("width", "100%");
+            $('select[name="tblMasterValues_length"]').formSelect();
+            $("select[required]").css({
+                display: "block", position: 'absolute', visibility: 'hidden'
+            });
+            
+            // Initialize ALL Materialize Select dropdowns
+            console.log('🔧 Initializing Materialize select dropdowns...');
+            var elems = document.querySelectorAll('select');
+            var instances = M.FormSelect.init(elems);
+            console.log('✅ Initialized', instances.length, 'select dropdowns');
+            
+            // Debug: Check dropdown options
+            var ddlMasterKeys = $('#ddlMasterKeys');
+            console.log('📋 Master Keys dropdown options count:', ddlMasterKeys.find('option').length);
+            ddlMasterKeys.find('option').each(function(index) {
+                console.log('  Option', index, ':', $(this).val(), '-', $(this).text());
+            });
+            
+            // IMPORTANT: Listen to Materialize-specific change event
+            // Materialize uses a custom dropdown that doesn't always trigger native change
+            $(document).on('change', '#ddlMasterKeys', function() {
+                var selectedKey = $(this).val();
+                console.log('🔄 #ddlMasterKeys changed! Selected key:', selectedKey);
+                loadMasterValuesByKey(selectedKey);
+            });
+            
+            // Add reset button handler
+            $(document).on('click', '.reset', function() {
+                $('#formMasterValue')[0].reset();
+                $('#IsEdit').val('');
+                $('#MasterValueInContext_RowKey').val('');
+                $('#Input_MasterKey_RowKey').val('');
+                $('#MasterValueInContext_PartitionKey').val('');
+                $('#select_MasterValueInContext_PartitionKey').formSelect('destroy');
+                $('#select_MasterValueInContext_PartitionKey').removeAttr('disabled');
+                $('#select_MasterValueInContext_PartitionKey').val('');
+                $('#select_MasterValueInContext_PartitionKey').formSelect();
+                $('#MasterValueInContext_Name').val('').removeClass('valid');
+                $('#MasterValueInContext_IsActive').prop('checked', true); // Default to Active
+                $('.btnSubmit').text('SAVE');
+                M.updateTextFields();
+            });
+        });
+
+        // Function to load Master Values by Key
+        function loadMasterValuesByKey(selectedKey) {
+            console.log('📡 loadMasterValuesByKey called with key:', selectedKey);
+            
+            if (selectedKey && selectedKey !== '') {
+                console.log('🔄 Loading Master Values for key:', selectedKey);
+                $.ajax({
+                    url: '@Url.Action("MasterValuesByKey", "MasterData")',
+                    type: 'GET',
+                    data: { key: selectedKey },
+                    success: function(response) {
+                        console.log('✅ AJAX Success! Response:', response);
+                        var table = $('#tblMasterValues').DataTable();
+                        table.clear();
+                        if (response.data && response.data.length > 0) {
+                            console.log('📊 Adding', response.data.length, 'rows to table');
+                            table.rows.add(response.data);
+                        } else {
+                            console.log('⚠️ No data returned from server for key:', selectedKey);
+                        }
+                        table.draw();
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('❌ AJAX Error!');
+                        console.error('Status:', status);
+                        console.error('Error:', error);
+                        console.error('Response:', xhr.responseText);
+                        M.toast({html: '❌ Error loading Master Values: ' + error, classes: 'red'});
+                    }
+                });
+            } else {
+                console.log('⚠️ No key selected, clearing table');
+                var table = $('#tblMasterValues').DataTable();
+                table.clear().draw();
+            }
+        }
+
+        // On click of Edit icon
+        $(document).on('click', '.edit', function () {
+            var user = $('#tblMasterValues').DataTable().row($(this).parents('tr')).data();
+            console.log('[DEBUG] Edit clicked, data:', user);
+            
+            $('#IsEdit').val('True');
+            $('#MasterValueInContext_RowKey').val(user.rowKey || user.RowKey);
+            $('#Input_MasterKey_RowKey').val(user.rowKey || user.RowKey);
+            $('#MasterValueInContext_PartitionKey').val(user.partitionKey || user.PartitionKey);
+            
+            $('#select_MasterValueInContext_PartitionKey').formSelect('destroy');
+            var partitionKeyValue = user.partitionKey || user.PartitionKey;
+            $('#select_MasterValueInContext_PartitionKey option').filter(function() {
+                return $(this).val() === partitionKeyValue;
+            }).prop('selected', true);
+            $('#select_MasterValueInContext_PartitionKey').attr('disabled', 'disabled');
+            $('#select_MasterValueInContext_PartitionKey').formSelect();
+            $('.select-wrapper').removeClass('valid');
+            
+            $('#MasterValueInContext_Name').val(user.name || user.Name);
+            $('#MasterValueInContext_Name').addClass('valid');
+            $('#MasterValueInContext_IsActive').prop('checked', (user.isActive === true || user.IsActive === true));
+            $('.btnSubmit').text('SAVE');
+            M.updateTextFields();
+        });
+
+        // Save/Create Button Click Event
+        $(document).on('click', '.btnSubmit', function () {
+            console.log('[DEBUG] Save button clicked!');
+            var form = $("#formMasterValue");
+            
+            // Get form data
+            var partitionKey = $('#select_MasterValueInContext_PartitionKey').val();
+            var name = $('#MasterValueInContext_Name').val();
+            var isActive = $('#MasterValueInContext_IsActive').is(':checked');
+            var rowKey = $('#MasterValueInContext_RowKey').val();
+            var isEdit = $('#IsEdit').val();
+            
+            console.log('[DEBUG] Form Data:');
+            console.log('  - PartitionKey:', partitionKey);
+            console.log('  - Name:', name);
+            console.log('  - IsActive:', isActive);
+            console.log('  - IsActive checkbox checked?:', $('#MasterValueInContext_IsActive').prop('checked'));
+            console.log('  - RowKey:', rowKey);
+            console.log('  - IsEdit:', isEdit);
+            
+            // Validation
+            if (!partitionKey || partitionKey === '') {
+                alert('Please select a Partition Key!');
+                M.toast({html: '⚠️ Please select a Partition Key!', classes: 'orange'});
+                return;
+            }
+            
+            if (!name || name === '') {
+                alert('Please enter a Name!');
+                M.toast({html: '⚠️ Please enter a Name!', classes: 'orange'});
+                return;
+            }
+            
+            // Prepare data
+            var postData = {
+                'masterValue.PartitionKey': partitionKey,
+                'masterValue.Name': name,
+                'masterValue.IsActive': isActive,
+                'isEdit': isEdit === 'True'
+            };
+            
+            if (isEdit === 'True' && rowKey) {
+                postData['masterValue.RowKey'] = rowKey;
+            }
+            
+            console.log('[DEBUG] POST Data:', postData);
+            
+            // Get AntiForgery token
+            var token = $('input[name="__RequestVerificationToken"]').val();
+            console.log('[DEBUG] Token:', token ? 'Found' : 'NOT FOUND');
+            
+            // Send AJAX request
+            $.ajax({
+                url: '@Url.Action("MasterValues", "MasterData")',
+                type: 'POST',
+                data: postData,
+                headers: {
+                    'RequestVerificationToken': token
+                },
+                success: function (data, status, xhr) {
+                    console.log('[DEBUG] POST success! Response:', data);
+                    
+                    if (data === true || data === 'true') {
+                        M.toast({html: '✅ Master Value saved successfully!', classes: 'green'});
+                        
+                        // Reset form first
+                        $('.reset').click();
+                        
+                        // Set dropdown to the partition key we just saved
+                        $('#ddlMasterKeys').val(partitionKey);
+                        // Reinitialize Materialize select to update UI
+                        $('#ddlMasterKeys').formSelect();
+                        
+                        // Reload table data using the shared function
+                        console.log('[DEBUG] Reloading table for partition key:', partitionKey);
+                        loadMasterValuesByKey(partitionKey);
+                    } else {
+                        console.error('[DEBUG] Save failed, response:', data);
+                        M.toast({html: '❌ Error saving Master Value!', classes: 'red'});
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('[DEBUG] POST failed!');
+                    console.error('[DEBUG] Status:', status);
+                    console.error('[DEBUG] Error:', error);
+                    console.error('[DEBUG] Response:', xhr.responseText);
+                    M.toast({html: '❌ Error: ' + error, classes: 'red'});
+                    alert('Error saving Master Value: ' + error + '\n\nCheck console for details.');
+                }
+            });
+        });
+    </script>
+}

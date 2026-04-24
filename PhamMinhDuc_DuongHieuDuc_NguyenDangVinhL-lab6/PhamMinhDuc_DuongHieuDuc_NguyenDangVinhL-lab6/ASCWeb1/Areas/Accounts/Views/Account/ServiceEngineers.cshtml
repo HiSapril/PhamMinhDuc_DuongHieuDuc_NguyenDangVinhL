@@ -1,0 +1,324 @@
+@using Microsoft.AspNetCore.Identity;
+@using System.Security.Claims;
+@inject UserManager<IdentityUser> userManager;
+
+@model ASCWeb1.Areas.Accounts.Models.ServiceEngineerViewModel
+
+@{
+    Layout = "_SecureLayout";
+    ViewData["HideFooter"] = true;
+}
+
+<style>
+    .page-container {
+        display: flex;
+        position: relative;
+        min-height: 600px;
+    }
+    .main-content {
+        flex: 1;
+        padding-right: 70px;
+    }
+    .right-sidebar {
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 70px;
+        background-color: #2c3e50;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px 0;
+        z-index: 100;
+        box-shadow: -2px 0 8px rgba(0,0,0,0.3);
+        border-radius: 4px 0 0 4px;
+    }
+    .right-sidebar .sidebar-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 60px;
+        min-height: 60px;
+        margin-bottom: 10px;
+        padding: 8px 5px;
+        color: white;
+        text-decoration: none;
+        background-color: #34495e;
+        border-radius: 4px;
+        transition: all 0.3s;
+        cursor: pointer;
+    }
+    .right-sidebar .sidebar-item:last-child {
+        margin-bottom: 0;
+    }
+    .right-sidebar .sidebar-item:hover {
+        background-color: #3d566e;
+        transform: translateX(-2px);
+    }
+    .right-sidebar .sidebar-item i {
+        font-size: 24px;
+        margin-bottom: 4px;
+    }
+    .right-sidebar .sidebar-item span {
+        font-size: 10px;
+        text-align: center;
+        font-weight: 500;
+    }
+    .right-sidebar .icon-with-border {
+        border: 2px dashed rgba(255,255,255,0.6);
+        border-radius: 4px;
+        padding: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .right-sidebar .icon-with-border i {
+        font-size: 22px;
+        margin: 0;
+    }
+    /* Fix for action buttons */
+    .btn-floating.edit {
+        position: relative;
+        z-index: 10;
+        pointer-events: auto !important;
+    }
+    .btn-floating.edit:hover {
+        transform: scale(1.1);
+        box-shadow: 0 5px 11px 0 rgba(0,0,0,0.18), 0 4px 15px 0 rgba(0,0,0,0.15);
+    }
+    table td {
+        position: relative;
+    }
+</style>
+
+<div class="page-container">
+    <div class="main-content">
+        <div class="row">
+            <div class="row padding-left-20px padding-right-20px">
+                <div class="row z-depth-3">
+                    <div class="section white-text blue-grey lighten-1" style="padding: 15px 20px;">
+                        <h5 style="margin: 0;">Users</h5>
+                    </div>
+                </div>
+            <div class="divider"></div>
+            <div class="col s12 padding-bottom-15px">
+                @if (Model.ServiceEngineers != null)
+                {
+                    @* Display List of Service Engineers *@
+                    <table class="highlight centered responsive-table" id="tblServiceEngineers">
+                        <thead>
+                            <tr>
+                                <th data-field="Email">Email</th>
+                                <th data-field="IsActive">Is Active</th>
+                                <th data-field="Status">Status</th>
+                                <th data-field="Actions">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var user in Model.ServiceEngineers)
+                            {
+                                var identity = await userManager.GetClaimsAsync(user);
+                                var isActiveClaim = identity.SingleOrDefault(p => p.Type == "IsActive");
+                                var isActive = isActiveClaim != null && bool.Parse(isActiveClaim.Value);
+                                <tr>
+                                    <td>@user.Email</td>
+                                    <td>@isActive</td>
+                                    <td>
+                                        @if (isActive)
+                                        {
+                                            <i class="material-icons green-text">check_circle</i>
+                                        }
+                                        else
+                                        {
+                                            <i class="material-icons red-text">cancel</i>
+                                        }
+                                    </td>
+                                    <td>
+                                        <a href="javascript:void(0);" 
+                                           class="btn-floating btn-small waves-effect waves-light teal edit-btn" 
+                                           onclick="editUser('@user.Email', '@user.UserName', @(isActive.ToString().ToLower()))"
+                                           title="Edit User">
+                                            <i class="material-icons">edit</i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    @* In case of No records, display no records message *@
+                    <div class="card blue-grey lighten-1">
+                        <div class="card-content white-text">
+                            <span class="card-title">No Service Engineers!!!</span>
+                            <p>
+                                No Service Engineers found, please add a Service Engineer to system.
+                            </p>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        @* Details Section *@
+        <div class="row z-depth-3">
+            <div class="col s12 padding-0px">
+                <div class="section white-text blue-grey lighten-1" style="padding: 15px 20px;">
+                    <h5 style="margin: 0;">Service Engineer Details</h5>
+                </div>
+                <div class="divider"></div>
+                <form asp-controller="Account" asp-action="ServiceEngineers" method="post" class="col s12" id="frmUser">
+                    <input type="hidden" asp-for="Registration.IsEdit" />
+                    <input type="hidden" asp-for="Registration.Email" />
+                    <div class="input-field col s4">
+                        <input asp-for="Registration.Email" id="Input_Registration_Email" />
+                        <label asp-for="Registration.Email"></label>
+                    </div>
+                    <div class="input-field col s4">
+                        <input asp-for="Registration.UserName" class="validate" />
+                        <label asp-for="Registration.UserName"></label>
+                    </div>
+                    <div class="input-field col s4 password-field">
+                        <input asp-for="Registration.Password" class="validate" />
+                        <label asp-for="Registration.Password"></label>
+                    </div>
+                    <div class="input-field col s4 confirm-password-field">
+                        <input asp-for="Registration.ConfirmPassword" class="validate" />
+                        <label asp-for="Registration.ConfirmPassword"></label>
+                    </div>
+                    <div class="input-field col s4">
+                        <div class="switch">
+                            <label>
+                                Is Active
+                                <input asp-for="Registration.IsActive" class="validate" />
+                                <span class="lever"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="input-field col s4 right-align">
+                        <button class="btn waves-effect waves-light btnSubmit" type="submit" name="action">
+                            Create
+                            <i class="material-icons right">send</i>
+                        </button>
+                        <button class="btn waves-effect waves-light reset red lighten-1" type="button" name="action">
+                            Reset
+                        </button>
+                    </div>
+                    <div class="row col s12 right-align" asp-validation-summary="All"></div>
+                </form>
+            </div>
+        </div>
+        <div class="row"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Right Sidebar -->
+    <div class="right-sidebar">
+        <a href="/" class="sidebar-item" title="Home">
+            <i class="material-icons">home</i>
+            <span>Home</span>
+        </a>
+        <div class="sidebar-item" title="Camera">
+            <div class="icon-with-border">
+                <i class="material-icons">photo_camera</i>
+            </div>
+        </div>
+        <div class="sidebar-item" title="Monitor">
+            <i class="material-icons">desktop_windows</i>
+        </div>
+        <div class="sidebar-item" title="Manage">
+            <span style="font-size: 13px; font-weight: 500;">Manage</span>
+        </div>
+    </div>
+</div>
+
+
+@section Scripts {
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.3/css/jquery.dataTables.css">
+    
+    <!-- DataTables JS -->
+    <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.js"></script>
+    
+    <script>
+        // Global function to edit user
+        function editUser(email, username, isActive) {
+            console.log('editUser called:', email, username, isActive);
+            
+            // Set cả 2 email fields
+            $('#Input_Registration_Email').val(email);
+            $('#Registration_Email').val(email);
+            $('#Input_Registration_Email').attr('disabled', 'disabled');
+            
+            $('#Registration_UserName').val(username);
+            $('#Registration_UserName').addClass('valid');
+            $('#Registration_IsActive').prop('checked', isActive);
+            $('#Registration_IsEdit').val('true');
+            
+            // Ẩn password fields khi edit
+            $('.password-field').hide();
+            $('.confirm-password-field').hide();
+            
+            $('.btnSubmit').text('Save');
+            M.updateTextFields();
+            
+            // Scroll to form
+            $('html, body').animate({
+                scrollTop: $('#frmUser').offset().top - 20
+            }, 500);
+        }
+        
+        $(document).ready(function() {
+            console.log('Initializing DataTable for Service Engineers');
+            
+            // Initialize Datatable to show list of Engineers
+            var table = $('#tblServiceEngineers').DataTable({
+                'pageLength': 3,
+                'lengthMenu': [[3, 5, 10, -1], [3, 5, 10, 'All']],
+                'columnDefs': [
+                    { 'visible': false, 'targets': 1 } // Hide the "Is Active" text column
+                ]
+            });
+
+            // Set Styles for DataTable
+            $('#tblServiceEngineers').css('width', '100%');
+            $('select[name=tblServiceEngineers_length]').formSelect();
+
+            // Handle Reset functionality
+            $(document).on('click', '.reset', function () {
+                $('#frmUser')[0].reset();
+                $('#Input_Registration_Email').removeAttr('disabled');
+                $('.btnSubmit').text('Create');
+                $('#Registration_IsEdit').val('false');
+                
+                // Hiện lại password fields khi reset
+                $('.password-field').show();
+                $('.confirm-password-field').show();
+            });
+
+            // This is required to disable Email filed on Server-side model validation failure.
+            if ($('#Registration_IsEdit').val() == 'true') {
+                $('#Input_Registration_Email').attr('disabled', 'disabled');
+            }
+
+            // Set hidden Email field to correct value from UI field
+            $(document).on('click', '.btnSubmit', function (e) {
+                // Đảm bảo cả 2 email fields đều có giá trị
+                var emailValue = $('#Input_Registration_Email').val();
+                $('#Registration_Email').val(emailValue);
+                
+                // Enable email field trước khi submit
+                $('#Input_Registration_Email').removeAttr('disabled');
+                
+                M.updateTextFields();
+                
+                console.log('Submitting with email:', emailValue);
+            });
+        });
+    </script>
+}
+
