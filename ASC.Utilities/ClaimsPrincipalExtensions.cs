@@ -14,16 +14,25 @@ namespace ASC.Utilities
             if (!principal.Claims.Any())
                 return null;
 
+            // Ưu tiên lấy DisplayName claim (custom claim), nếu không có thì fallback sang ClaimTypes.Name
+            var displayNameClaim = principal.FindFirst(c => c.Type == "DisplayName");
             var nameClaim = principal.FindFirst(c => c.Type == ClaimTypes.Name);
             var emailClaim = principal.FindFirst(c => c.Type == ClaimTypes.Email);
             var pictureClaim = principal.FindFirst(c => c.Type == "picture");
 
-            if (nameClaim == null || emailClaim == null)
+            if (emailClaim == null)
                 return null;
+
+            // Ưu tiên DisplayName, nếu không có thì lấy Name, cuối cùng fallback sang phần trước @ của email
+            var name = displayNameClaim?.Value ?? nameClaim?.Value;
+            if (string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(emailClaim.Value))
+            {
+                name = emailClaim.Value.Split('@')[0];
+            }
 
             return new CurrentUser
             {
-                Name = nameClaim.Value,
+                Name = name ?? "User",
                 Email = emailClaim.Value,
                 Roles = principal.FindAll(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToArray(),
                 IsActive = Boolean.Parse(principal.FindFirst(c => c.Type == "IsActive")?.Value ?? "false"),

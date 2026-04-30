@@ -10,7 +10,20 @@
 <div class="row padding-top-20px padding-left-20px padding-right-20px">
     <div class="row z-depth-3">
         <div class="section white-text padding-left-10px blue-grey lighten-1">
-            <h5>Master Values</h5>
+            <div class="row valign-wrapper" style="margin-bottom: 0;">
+                <div class="col s9">
+                    <h5>Master Values</h5>
+                </div>
+                <div class="col s3 right-align">
+                    <a class="btn-floating btn-small waves-effect waves-light orange tooltipped btnRefreshCache" 
+                       data-position="bottom" data-tooltip="Refresh Cache" style="margin-right: 10px;">
+                        <i class="material-icons">refresh</i>
+                    </a>
+                    <a class="modal-trigger waves-effect waves-light" href="#modal1">
+                        <img src="~/images/excel.svg" alt="Upload Excel" style="height: 40px; cursor: pointer;" title="Upload Excel File" />
+                    </a>
+                </div>
+            </div>
         </div>
         <div class="divider"></div>
         <div class="row" style="margin-bottom: 0;">
@@ -136,6 +149,49 @@
                 </div>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- Modal Structure for Excel Upload -->
+<div id="modal1" class="modal">
+    <div class="modal-content">
+        <h4>Upload Excel</h4>
+        <p>Upload the Excel file that contains all the master values.</p>
+        <p class="grey-text">Format: Column A = MasterKey, Column B = MasterValue, Column C = IsActive (TRUE/FALSE)</p>
+        
+        <!-- Div to display Errors-->
+        <div class="row hide divErrors">
+            <div class="col s12">
+                <div class="card-panel red lighten-1">
+                    <span class="white-text errors"></span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Div to display progress -->
+        <div class="progress hide">
+            <div class="indeterminate"></div>
+        </div>
+        
+        <!-- File Upload Form -->
+        <div class="row">
+            <div class="file-field input-field col s12">
+                <div class="btn teal">
+                    <span>Choose File</span>
+                    <input type="file" id="files" accept=".xlsx,.xls">
+                </div>
+                <div class="file-path-wrapper">
+                    <input class="file-path validate" type="text" placeholder="Select Excel file (.xlsx, .xls)">
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <button class="btn waves-effect waves-light teal btnUpload" type="button">
+            <i class="material-icons left">cloud_upload</i>
+            Upload
+        </button>
+        <a href="#!" class="modal-close waves-effect waves-light btn-flat">Cancel</a>
     </div>
 </div>
 
@@ -386,6 +442,146 @@
                     console.error('[DEBUG] Response:', xhr.responseText);
                     M.toast({html: '❌ Error: ' + error, classes: 'red'});
                     alert('Error saving Master Value: ' + error + '\n\nCheck console for details.');
+                }
+            });
+        });
+        
+        // Initialize Modal
+        $('.modal').modal();
+        
+        // Initialize tooltips
+        $('.tooltipped').tooltip();
+        
+        // Handle Cache Refresh
+        $(document).on('click', '.btnRefreshCache', function () {
+            console.log('🔄 Refreshing cache...');
+            
+            // Show loading toast
+            M.toast({html: '🔄 Refreshing cache...', classes: 'blue', displayLength: 2000});
+            
+            $.ajax({
+                url: '@Url.Action("RefreshCache", "MasterData")',
+                type: 'GET',
+                success: function (response) {
+                    console.log('✅ Cache refresh response:', response);
+                    
+                    if (response.success === true) {
+                        M.toast({
+                            html: `✅ ${response.message}`, 
+                            classes: 'green', 
+                            displayLength: 4000
+                        });
+                    } else {
+                        M.toast({
+                            html: `❌ ${response.message}`, 
+                            classes: 'red', 
+                            displayLength: 4000
+                        });
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error('❌ Cache refresh failed!');
+                    console.error('Error:', error);
+                    M.toast({html: '❌ Error refreshing cache: ' + error, classes: 'red', displayLength: 4000});
+                }
+            });
+        });
+        
+        // Handle Excel Upload
+        $(document).on('click', '.btnUpload', function () {
+            console.log('📤 Upload button clicked');
+            
+            var fileUpload = $("#files").get(0);
+            var files = fileUpload.files;
+            
+            // Check if file is selected
+            if (files.length === 0) {
+                M.toast({html: '⚠️ Please select an Excel file!', classes: 'orange'});
+                return;
+            }
+            
+            var file = files[0];
+            console.log('📁 File selected:', file.name, 'Size:', file.size, 'Type:', file.type);
+            
+            // Validate file extension
+            var fileName = file.name.toLowerCase();
+            if (!fileName.endsWith('.xlsx') && !fileName.endsWith('.xls')) {
+                M.toast({html: '⚠️ Please select a valid Excel file (.xlsx or .xls)', classes: 'orange'});
+                return;
+            }
+            
+            // Create FormData
+            var formData = new FormData();
+            formData.append('file', file);
+            
+            console.log('📤 Uploading file...');
+            
+            // Show progress bar, hide errors
+            $('.progress').removeClass('hide');
+            $('.divErrors').addClass('hide');
+            $('.btnUpload').prop('disabled', true);
+            
+            // Get AntiForgery token
+            var token = $('input[name="__RequestVerificationToken"]').val();
+            
+            // Upload file
+            $.ajax({
+                url: '@Url.Action("UploadExcel", "MasterData")',
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                headers: {
+                    'RequestVerificationToken': token
+                },
+                success: function (response) {
+                    console.log('✅ Upload response:', response);
+                    $('.progress').addClass('hide');
+                    $('.btnUpload').prop('disabled', false);
+                    
+                    if (response.success === true || response === true || response === 'true') {
+                        M.toast({html: '✅ Excel file uploaded successfully!', classes: 'green', displayLength: 3000});
+                        $('#modal1').modal('close');
+                        
+                        // Clear file input
+                        $('#files').val('');
+                        $('.file-path').val('');
+                        
+                        // Reload the page to show new data
+                        setTimeout(function() {
+                            location.reload();
+                        }, 1000);
+                    } else {
+                        var errorMsg = response.message || 'Error uploading file. Please check the format.';
+                        $('.divErrors').removeClass('hide');
+                        $('.errors').text(errorMsg);
+                        M.toast({html: '❌ ' + errorMsg, classes: 'red', displayLength: 4000});
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error('❌ Upload failed!');
+                    console.error('Status:', status);
+                    console.error('Error:', error);
+                    console.error('Response:', xhr.responseText);
+                    
+                    $('.progress').addClass('hide');
+                    $('.btnUpload').prop('disabled', false);
+                    
+                    var errorMsg = 'Error: ' + error;
+                    try {
+                        var response = JSON.parse(xhr.responseText);
+                        if (response.message) {
+                            errorMsg = response.message;
+                        }
+                    } catch (e) {
+                        if (xhr.responseText) {
+                            errorMsg = xhr.responseText.substring(0, 200);
+                        }
+                    }
+                    
+                    $('.divErrors').removeClass('hide');
+                    $('.errors').text(errorMsg);
+                    M.toast({html: '❌ Upload failed: ' + error, classes: 'red', displayLength: 4000});
                 }
             });
         });

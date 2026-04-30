@@ -20,7 +20,8 @@ namespace ASC.Model
     public enum MasterKeys
     {
         VehicleName,
-        VehicleType
+        VehicleType,
+        ServiceEngineer
     }
 
     public enum Status

@@ -71,7 +71,7 @@ namespace ASCWeb1.Areas.Identity.Pages.Account
 
         }
 
-        public IActionResult OnGet(string code = null)
+        public IActionResult OnGet(string code = null, string email = null)
         {
             if (code == null)
             {
@@ -81,7 +81,8 @@ namespace ASCWeb1.Areas.Identity.Pages.Account
             {
                 Input = new InputModel
                 {
-                    Code = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(code))
+                    Code = code,
+                    Email = email ?? string.Empty
                 };
                 return Page();
             }
@@ -97,13 +98,19 @@ namespace ASCWeb1.Areas.Identity.Pages.Account
             var user = await _userManager.FindByEmailAsync(Input.Email);
             if (user == null)
             {
-                // Don't reveal that the user does not exist
                 return RedirectToPage("./ResetPasswordConfirmation");
             }
 
-            var result = await _userManager.ResetPasswordAsync(user, Input.Code, Input.Password);
+            // Decode Base64Url -> UTF8 string (token thực sự)
+            var code = System.Text.Encoding.UTF8.GetString(
+                Microsoft.AspNetCore.WebUtilities.WebEncoders.Base64UrlDecode(Input.Code));
+
+            var result = await _userManager.ResetPasswordAsync(user, code, Input.Password);
             if (result.Succeeded)
             {
+                // Đảm bảo EmailConfirmed = true sau khi reset
+                user.EmailConfirmed = true;
+                await _userManager.UpdateAsync(user);
                 return RedirectToPage("./ResetPasswordConfirmation");
             }
 

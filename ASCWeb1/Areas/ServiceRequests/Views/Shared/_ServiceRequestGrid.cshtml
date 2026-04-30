@@ -2,6 +2,7 @@
 @using ASC.Model
 @{
     var isAudit = ViewBag.IsAudit;
+    var showTechnicalColumns = User.IsInRole(Roles.Admin.ToString()) || User.IsInRole(Roles.Engineer.ToString());
 }
 <div class="row"></div>
 <div class="row padding-top-20px padding-left-20px padding-right-20px">
@@ -16,9 +17,12 @@
                 <table class="highlight centered tblServiceRequests" id="@ViewBag.Id">
                     <thead>
                     <tr>
-                        <th data-field="RowKey">RowKey</th>
-                        <th data-field="PartitionKey">PartitionKey</th>
-                        <th data-field="PartitionKey">User</th>
+                        @if (showTechnicalColumns)
+                        {
+                            <th data-field="RowKey">RowKey</th>
+                            <th data-field="PartitionKey">PartitionKey</th>
+                        }
+                        <th data-field="User">User</th>
                         <th data-field="Status">Status</th>
                         <th data-field="RequestedDate">Requested Date</th>
                         <th data-field="ServiceEngineer">Service Engineer</th>
@@ -33,8 +37,11 @@
                     @foreach (var serviceRequest in Model)
                     {
                         <tr>
-                            <td>@serviceRequest.RowKey</td>
-                            <td>@serviceRequest.PartitionKey</td>
+                            @if (showTechnicalColumns)
+                            {
+                                <td>@serviceRequest.RowKey</td>
+                                <td>@serviceRequest.PartitionKey</td>
+                            }
                             <td>
                                 @(!serviceRequest.PartitionKey.Contains('-') ?
                                                             serviceRequest.PartitionKey :
@@ -74,7 +81,7 @@
                             @(serviceRequest.RequestedDate == null ? "" : serviceRequest.
                                                         RequestedDate.Value.ToString("dd/MM/yyyy"))
                         </td>
-                        <td>@serviceRequest.ServiceEngineer</td>
+                        <td>@(serviceRequest.ServiceEngineer ?? "Not Assigned")</td>
                         @if (isAudit)
                             {
                                 var trimText = String.IsNullOrWhiteSpace(serviceRequest.RequestedServices) ?
@@ -84,7 +91,12 @@
                                 serviceRequest.RequestedServices;
                                 <td title="@serviceRequest.RequestedServices">@trimText</td>
                             }
-                            <td><i class="small material-icons view cursor-hand">pageview</i></td>
+                            <td>
+                                <a href="@Url.Action("ServiceRequestDetails", "ServiceRequest", new { Area = "ServiceRequests", rowKey = serviceRequest.RowKey, partitionKey = serviceRequest.PartitionKey })" 
+                                   class="btn-small waves-effect waves-light teal">
+                                    <i class="material-icons left">pageview</i>View
+                                </a>
+                            </td>
                         </tr>
                     }
                 </tbody>

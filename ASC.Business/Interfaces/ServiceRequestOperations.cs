@@ -20,35 +20,26 @@ namespace ASC.Business.Interfaces
 
         public async Task CreateServiceRequestAsync(ServiceRequest request)
         {
-            using (_unitOfWork)
-            {
-                await _unitOfWork.Repository<ServiceRequest>().AddAsync(request);
-                _unitOfWork.CommitTransaction();
-            }
+            await _unitOfWork.Repository<ServiceRequest>().AddAsync(request);
+            _unitOfWork.CommitTransaction();
         }
 
         public ServiceRequest UpdateServiceRequest(ServiceRequest request)
         {
-            using (_unitOfWork)
-            {
-                _unitOfWork.Repository<ServiceRequest>().Update(request);
-                _unitOfWork.CommitTransaction();
-                return request;
-            }
+            _unitOfWork.Repository<ServiceRequest>().Update(request);
+            _unitOfWork.CommitTransaction();
+            return request;
         }
 
         public async Task<ServiceRequest> UpdateServiceRequestStatusAsync(string rowKey, string partitionKey, string status)
         {
-            using (_unitOfWork)
-            {
-                var serviceRequest = await _unitOfWork.Repository<ServiceRequest>().FindAsync(partitionKey, rowKey);
-                if (serviceRequest == null)
-                    throw new NullReferenceException();
-                serviceRequest.Status = status;
-                _unitOfWork.Repository<ServiceRequest>().Update(serviceRequest);
-                _unitOfWork.CommitTransaction();
-                return serviceRequest;
-            }
+            var serviceRequest = await _unitOfWork.Repository<ServiceRequest>().FindAsync(partitionKey, rowKey);
+            if (serviceRequest == null)
+                throw new NullReferenceException();
+            serviceRequest.Status = status;
+            _unitOfWork.Repository<ServiceRequest>().Update(serviceRequest);
+            _unitOfWork.CommitTransaction();
+            return serviceRequest;
         }
         public async Task<List<ServiceRequest>> GetServiceRequestsByRequestedDateAndStatus(
     DateTime? requestedDate, List<string>? status = null, string email = "", string serviceEngineerEmail = "")
@@ -56,6 +47,27 @@ namespace ASC.Business.Interfaces
             var query = Queries.GetDashboardQuery(requestedDate, status, email, serviceEngineerEmail);
             var serviceRequests = await _unitOfWork.Repository<ServiceRequest>().FindAllByQuery(query);
             return serviceRequests.ToList();
+        }
+
+        public async Task<ServiceRequest?> GetServiceRequestByRowKey(string partitionKey, string rowKey)
+        {
+            return await _unitOfWork.Repository<ServiceRequest>().FindAsync(partitionKey, rowKey);
+        }
+
+        public async Task<List<ServiceRequest>> GetActiveServiceRequests(List<string> status)
+        {
+            var query = Queries.GetDashboardQuery(null, status, "", "");
+            var serviceRequests = await _unitOfWork.Repository<ServiceRequest>().FindAllByQuery(query);
+            return serviceRequests.Where(sr => !string.IsNullOrEmpty(sr.ServiceEngineer)).ToList();
+        }
+
+        public async Task<List<ServiceRequest>> GetServiceRequestAuditByPartitionKey(string partitionKey)
+        {
+            // For audit, we query by PartitionKey which contains the audit trail
+            // In a real scenario, you might have a separate audit table
+            // For now, we'll return the service request history
+            var allRequests = await _unitOfWork.Repository<ServiceRequest>().FindAllAsync();
+            return allRequests.Where(sr => sr.PartitionKey == partitionKey || sr.PartitionKey.StartsWith(partitionKey + "-")).ToList();
         }
     }
 }

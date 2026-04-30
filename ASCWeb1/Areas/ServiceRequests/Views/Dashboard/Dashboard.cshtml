@@ -1,6 +1,8 @@
+@model ASCWeb1.Areas.ServiceRequests.Models.DashboardViewModel
 @using ASC.Model
 @{
     Layout = "_SecureLayout";
+    var showRecentUpdates = User.IsInRole(Roles.Admin.ToString()) || User.IsInRole(Roles.Engineer.ToString());
 }
 
 <div class="row"></div>
@@ -13,21 +15,128 @@ new ViewDataDictionary(ViewData)
     }
 )
 
+@* Recent Updates Section - Only for Admin and Engineer *@
+@if (showRecentUpdates)
+{
+    @await Html.PartialAsync("_ServiceRequestGrid", Model.RecentUpdates,
+    new ViewDataDictionary(ViewData)
+        {
+            { "SectionName", "Recent Updates" },
+            { "Id", "tblRecentUpdates" },
+            { "IsAudit", true }
+        }
+    )
+}
+
+@* Active Service Engineers Section - Only for Admin *@
+@if (User.IsInRole(Roles.Admin.ToString()))
+{
+    <div class="row padding-left-20px padding-right-20px">
+        <div class="col s12 m6">
+            <div class="row z-depth-3">
+                <div class="section white-text padding-left-10px blue-grey lighten-1">
+                    <h5>Active Service Engineers</h5>
+                </div>
+                <div class="divider"></div>
+                <ul class="collection" style="max-height: 300px; overflow-y: auto; margin: 0;">
+                    @if (Model.ActiveServiceRequests != null && Model.ActiveServiceRequests.Any())
+                    {
+                        foreach (var activeServiceRequest in Model.ActiveServiceRequests)
+                        {
+                            <li class="collection-item">
+                                <div>
+                                    @activeServiceRequest.Key
+                                    <span class="new badge teal" data-badge-caption="">@activeServiceRequest.Value</span>
+                                </div>
+                            </li>
+                        }
+                    }
+                    else
+                    {
+                        <li class="collection-item">
+                            <div class="card-panel teal lighten-2 white-text center-align" style="margin: 10px;">
+                                No Active Service Requests
+                            </div>
+                        </li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </div>
+}
+
 @section Scripts {
     <script>
         $(document).ready(function () {
+            console.log('🔧 Dashboard Scripts Loading...');
+            
+            var isAdmin = @(User.IsInRole("Admin") || User.IsInRole("Engineer") ? "true" : "false");
+            console.log('👤 Is Admin/Engineer:', isAdmin);
+            
             // Initialize DataTable to show list of Service Requests
+            var serviceRequestColumns = isAdmin ? 
+                [{ 'visible': false }, { 'visible': false }, null, { 'width': '20%' }, null, null, null] :
+                [null, { 'width': '20%' }, null, null, null];
+            
             var table = $('#tblServiceRequests').DataTable({
                 'pageLength': 3,
                 // Number of records to be displayed per page
                 'lengthMenu': [[3, 5, 10, -1], [3, 5, 10, 'All']],
                 // Remove default Sorting
                 'sorting': [],
-                'columns': [{ 'visible': false }, { 'visible': false }, null, { 'width': '20%' }, null, null, null]
+                'columns': serviceRequestColumns
                 // Set Styles for DataTable and Number of Records to be displayed dropdown
             });
             $('.tblServiceRequests').css("width", "100%");
             $('select[name$="ServiceRequests_length"]').material_select();
+            console.log('✅ Service Requests DataTable initialized');
+            
+            // Initialize DataTable for Recent Updates (only for Admin/Engineer)
+            if (isAdmin && $('#tblRecentUpdates').length > 0) {
+                var recentUpdateColumns = [{ 'visible': false }, { 'visible': false }, null, { 'width': '15%' }, null, null, null, null];
+                
+                var recentTable = $('#tblRecentUpdates').DataTable({
+                    'pageLength': 5,
+                    'lengthMenu': [[5, 10, 15, -1], [5, 10, 15, 'All']],
+                    'sorting': [],
+                    'columns': recentUpdateColumns
+                });
+                $('#tblRecentUpdates').css("width", "100%");
+                $('select[name$="RecentUpdates_length"]').material_select();
+                console.log('✅ Recent Updates DataTable initialized');
+            }
+            
+            // Count View icons
+            var viewIconCount = $('.view').length;
+            console.log('👁️ Found', viewIconCount, 'View icons');
+            
+            // Handle View icon click for both tables
+            $(document).on('click', '.view', function (e) {
+                e.preventDefault();
+                console.log('🖱️ View icon clicked!');
+                
+                // Get RowKey and PartitionKey from data attributes
+                var rowKey = $(this).data('rowkey');
+                var partitionKey = $(this).data('partitionkey');
+                
+                console.log('📋 RowKey:', rowKey);
+                console.log('📋 PartitionKey:', partitionKey);
+                
+                if (rowKey && partitionKey) {
+                    // Navigate to Service Request Details
+                    var url = '@Url.Action("ServiceRequestDetails", "ServiceRequest", new { Area = "ServiceRequests" })' + 
+                        '?rowKey=' + encodeURIComponent(rowKey) + 
+                        '&partitionKey=' + encodeURIComponent(partitionKey);
+                    
+                    console.log('🔗 Navigating to:', url);
+                    window.location.href = url;
+                } else {
+                    console.error('❌ Missing RowKey or PartitionKey!');
+                    M.toast({html: '❌ Unable to load service request details', classes: 'red'});
+                }
+            });
+            
+            console.log('✅ Dashboard Scripts Loaded Successfully');
         });
     </script>
 }

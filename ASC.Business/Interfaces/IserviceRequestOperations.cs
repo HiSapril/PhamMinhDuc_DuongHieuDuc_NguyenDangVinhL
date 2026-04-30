@@ -14,5 +14,8 @@ namespace ASC.Business.Interfaces
         Task<ServiceRequest> UpdateServiceRequestStatusAsync(string rowKey, string partitionKey, string status);
         Task<List<ServiceRequest>> GetServiceRequestsByRequestedDateAndStatus(DateTime? requestedDate,
             List<string>? status = null, string email = "", string serviceEngineerEmail = "");
+        Task<ServiceRequest?> GetServiceRequestByRowKey(string partitionKey, string rowKey);
+        Task<List<ServiceRequest>> GetActiveServiceRequests(List<string> status);
+        Task<List<ServiceRequest>> GetServiceRequestAuditByPartitionKey(string partitionKey);
     }
 }

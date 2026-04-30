@@ -47,19 +47,32 @@ namespace ASCWeb1.Data
                 if (result.Succeeded)
                 {
                     await userManager.AddToRoleAsync(newUser, role);
+                    // Thêm claim DisplayName để hiển thị trong UI (không dùng ClaimTypes.Name vì bị ghi đè bởi Identity)
+                    await userManager.AddClaimAsync(newUser, new Claim("DisplayName", name));
                 }
             }
             else
             {
-                // Nếu đã có User, ta ép Reset lại Password để đồng bộ Hash mới nhất
-                var token = await userManager.GeneratePasswordResetTokenAsync(user);
-                var result = await userManager.ResetPasswordAsync(user, token, password);
-
-                if (result.Succeeded)
+                // Chỉ cập nhật role nếu chưa có, KHÔNG reset password
+                if (!await userManager.IsInRoleAsync(user, role))
                 {
-                    Console.WriteLine($"[!] DA DONG BO HASH MOI CHO: {email}");
-                    Console.WriteLine($"[!] HASH HIEN TAI TRONG DB: {user.PasswordHash}");
+                    await userManager.AddToRoleAsync(user, role);
                 }
+                // Đảm bảo EmailConfirmed = true
+                if (!user.EmailConfirmed)
+                {
+                    user.EmailConfirmed = true;
+                    await userManager.UpdateAsync(user);
+                }
+                // Xóa claim DisplayName cũ và thêm mới để đảm bảo đồng bộ
+                var existingClaims = await userManager.GetClaimsAsync(user);
+                var displayNameClaim = existingClaims.FirstOrDefault(c => c.Type == "DisplayName");
+                if (displayNameClaim != null)
+                {
+                    await userManager.RemoveClaimAsync(user, displayNameClaim);
+                }
+                await userManager.AddClaimAsync(user, new Claim("DisplayName", name));
+                Console.WriteLine($"[!] ĐÃ CẬP NHẬT DISPLAYNAME CLAIM CHO: {email} -> {name}");
             }
         }
     }

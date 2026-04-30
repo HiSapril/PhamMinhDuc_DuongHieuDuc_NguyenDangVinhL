@@ -1,0 +1,362 @@
+@model ASCWeb1.Areas.ServiceRequests.Models.ServiceRequestDetailViewModel
+@using ASC.Model
+@{
+    Layout = "_SecureLayout";
+    
+    // Compute Service Engineer and Status Disable logic
+    string? serviceEngineerDisabled = null;
+    if (!User.IsInRole(Roles.Admin.ToString()))
+    {
+        serviceEngineerDisabled = "disabled";
+    }
+
+    string? statusDisabled = null;
+    if (!User.IsInRole(Roles.Admin.ToString()) &&
+        !User.IsInRole(Roles.Engineer.ToString()))
+    {
+        statusDisabled = "disabled";
+    }
+
+    // Customer can update the status only if the original status is PendingCustomerApproval
+    if (User.IsInRole(Roles.User.ToString()) &&
+        Model.ServiceRequest.Status == Status.PendingCustomerApproval.ToString())
+    {
+        statusDisabled = null;
+        ViewBag.Status = new List<string> { "Completed", "RequestForInformation" };
+    }
+}
+
+<div class="row"></div>
+<div class="row padding-top-20px padding-left-20px padding-right-20px">
+    @* Details Section *@
+    <div class="row z-depth-3">
+        <div class="col s12 padding-0px">
+            <div class="section white-text padding-left-10px blue-grey lighten-1">
+                <h5>Service Request Details</h5>
+            </div>
+            <div class="divider"></div>
+            
+            <form asp-controller="ServiceRequest" asp-action="UpdateServiceRequestDetails" method="post"
+                  class="col s12" novalidate="novalidate">
+                <input type="hidden" asp-for="ServiceRequest.RowKey" />
+                <input type="hidden" asp-for="ServiceRequest.PartitionKey" />
+                <input type="hidden" asp-for="ServiceRequest.RequestedDate" />
+                
+                <div class="row">
+                    <div class="input-field col s4">
+                        @{
+                            var vehicleNames = ViewBag.VehicleNames as List<ASC.Model.Models.MasterDataValue>;
+                            var selectedVehicleName = vehicleNames?.FirstOrDefault(v => v.RowKey == Model.ServiceRequest.VehicleName || v.Name == Model.ServiceRequest.VehicleName);
+                            var vehicleNameDisplay = selectedVehicleName?.Name ?? Model.ServiceRequest.VehicleName ?? "Not specified";
+                        }
+                        <input type="text" value="@vehicleNameDisplay" disabled class="validate" />
+                        <input type="hidden" asp-for="ServiceRequest.VehicleName" />
+                        <label for="ServiceRequest_VehicleName" class="active">Vehicle Name</label>
+                    </div>
+                    <div class="input-field col s4">
+                        @{
+                            var vehicleTypes = ViewBag.VehicleTypes as List<ASC.Model.Models.MasterDataValue>;
+                            var selectedVehicleType = vehicleTypes?.FirstOrDefault(v => v.RowKey == Model.ServiceRequest.VehicleType || v.Name == Model.ServiceRequest.VehicleType);
+                            var vehicleTypeDisplay = selectedVehicleType?.Name ?? Model.ServiceRequest.VehicleType ?? "Not specified";
+                        }
+                        <input type="text" value="@vehicleTypeDisplay" disabled class="validate" />
+                        <input type="hidden" asp-for="ServiceRequest.VehicleType" />
+                        <label for="ServiceRequest_VehicleType" class="active">Vehicle Type</label>
+                    </div>
+                    <div class="input-field col s4">
+                        <input asp-for="ServiceRequest.RequestedDate" type="text"
+                               disabled="disabled" class="datepicker"
+                               value="@(Model.ServiceRequest.RequestedDate?.ToString("dd/MM/yyyy"))" />
+                        <label asp-for="ServiceRequest.RequestedDate" class="active">Requested Date</label>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="input-field col s8">
+                        <textarea asp-for="ServiceRequest.RequestedServices"
+                                  class="materialize-textarea validate"></textarea>
+                        <label asp-for="ServiceRequest.RequestedServices" class="@(Model.ServiceRequest.RequestedServices != null ? "active" : "")">Requested Services</label>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="input-field col s4">
+                        <label for="ServiceRequest_ServiceEngineer" class="active">Service Engineer</label>
+                        @if (User.IsInRole(Roles.Admin.ToString()))
+                        {
+                            var engineers = ViewBag.ServiceEngineers as IList<Microsoft.AspNetCore.Identity.IdentityUser>;
+                            if (engineers != null && engineers.Any())
+                            {
+                                <select asp-for="ServiceRequest.ServiceEngineer"
+                                        asp-items="@(new SelectList(engineers, "Email", "Email", Model.ServiceRequest.ServiceEngineer))"
+                                        class="browser-default"
+                                        style="display: block; margin-top: 20px;">
+                                    <option value="">Please select one</option>
+                                </select>
+                            }
+                            else
+                            {
+                                <input type="text" value="No engineers available" disabled class="validate" style="margin-top: 20px;" />
+                                <input type="hidden" asp-for="ServiceRequest.ServiceEngineer" />
+                            }
+                        }
+                        else
+                        {
+                            <input type="text" value="@(string.IsNullOrEmpty(Model.ServiceRequest.ServiceEngineer) ? "Not Assigned" : Model.ServiceRequest.ServiceEngineer)" disabled class="validate" style="margin-top: 20px;" />
+                            <input type="hidden" asp-for="ServiceRequest.ServiceEngineer" />
+                        }
+                    </div>
+                    <div class="input-field col s4">
+                        <label for="ServiceRequest_Status" class="active">Status</label>
+                        @if (User.IsInRole(Roles.Admin.ToString()) || User.IsInRole(Roles.Engineer.ToString()) || 
+                            (User.IsInRole(Roles.User.ToString()) && Model.ServiceRequest.Status == Status.PendingCustomerApproval.ToString()))
+                        {
+                            <select asp-for="ServiceRequest.Status"
+                                    asp-items="@(new SelectList(ViewBag.Status, Model.ServiceRequest.Status))"
+                                    class="browser-default validate"
+                                    style="display: block; margin-top: 20px;">
+                                <option value="">Please select one</option>
+                            </select>
+                        }
+                        else
+                        {
+                            <input type="text" value="@Model.ServiceRequest.Status" disabled class="validate" style="margin-top: 20px;" />
+                            <input type="hidden" asp-for="ServiceRequest.Status" />
+                        }
+                    </div>
+                    <div class="input-field col s12 right-align">
+                        <button class="btn waves-effect waves-light teal btnSubmit" type="submit">
+                            Update
+                            <i class="material-icons right">send</i>
+                        </button>
+                    </div>
+                    <div class="row col s12 right-align" asp-validation-summary="All"></div>
+                </div>
+            </form>
+        </div>
+        <div class="row"></div>
+    </div>
+</div>
+
+@* Real-Time Communication Section *@
+<div class="row padding-top-20px padding-left-20px padding-right-20px">
+    <div class="row z-depth-3">
+        <div class="col s12 padding-0px">
+            <div class="section white-text padding-left-10px blue-grey lighten-1">
+                <h5>Service Request Messages</h5>
+            </div>
+            <div class="divider"></div>
+            
+            <div class="row padding-20px">
+                <div class="col s12">
+                    <div class="messages" style="height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; background-color: #f9f9f9;">
+                        <!-- Messages will be displayed here -->
+                    </div>
+                    
+                    <div class="row">
+                        <div class="input-field col s10">
+                            <textarea id="messageText" class="materialize-textarea" placeholder="Type your message here..."></textarea>
+                            <label for="messageText">Message</label>
+                        </div>
+                        <div class="input-field col s2">
+                            <button id="btnSendMessage" class="btn waves-effect waves-light teal" type="button">
+                                Send
+                                <i class="material-icons right">send</i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* Audit Section *@
+@await Html.PartialAsync("_ServiceRequestGrid", Model.ServiceRequestAudit,
+new ViewDataDictionary(ViewData)
+    {
+        { "SectionName", "Recent Updates" },
+        { "Id", "tblAuditServiceRequests" },
+        { "IsAudit", true }
+    }
+)
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            // Initialize DatePicker with Materialize
+            var elems = document.querySelectorAll('.datepicker');
+            var instances = M.Datepicker.init(elems, {
+                format: 'dd/mm/yyyy',
+                yearRange: 15
+            });
+
+            // Initialize Material Select
+            $('select').formSelect();
+            $("select[required]").css({ display: "block", position: 'absolute', visibility: 'hidden' });
+            
+            M.updateTextFields();
+
+            // SignalR Configuration
+            var serviceRequestId = '@Model.ServiceRequest.RowKey';
+            var currentUserEmail = '@User.Identity.Name';
+            var currentUserName = '@User.Identity.Name';
+
+            // Configure SignalR connection
+            const connection = new signalR.HubConnectionBuilder()
+                .withUrl("/servicemessages")
+                .configureLogging(signalR.LogLevel.Information)
+                .build();
+
+            // Start SignalR connection
+            connection.start()
+                .then(function () {
+                    console.log("SignalR Connected!");
+                    // Join the service request group
+                    return connection.invoke("JoinGroup", serviceRequestId);
+                })
+                .then(function () {
+                    console.log("Joined group: " + serviceRequestId);
+                    // Load existing messages
+                    loadMessages();
+                })
+                .catch(function (err) {
+                    console.error("SignalR Connection Error: " + err.toString());
+                });
+
+            // Receive messages from SignalR
+            connection.on("ReceiveMessage", function (fromDisplayName, fromEmail, message) {
+                addMessageToUI(fromDisplayName, fromEmail, message, new Date());
+                scrollToLatestMessages();
+            });
+
+            // Load existing messages
+            function loadMessages() {
+                $.ajax({
+                    url: '/ServiceRequests/ServiceRequest/ServiceRequestMessages',
+                    type: 'GET',
+                    data: { serviceRequestId: serviceRequestId },
+                    success: function (data) {
+                        if (data && data.length > 0) {
+                            data.forEach(function (msg) {
+                                addMessageToUI(msg.fromDisplayName, msg.fromEmail, msg.message, new Date(msg.messageDate));
+                            });
+                            scrollToLatestMessages();
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        console.error("Error loading messages: " + error);
+                    }
+                });
+            }
+
+            // Add message to UI
+            function addMessageToUI(fromDisplayName, fromEmail, message, messageDate) {
+                var isCurrentUser = fromEmail === currentUserEmail;
+                var messageClass = isCurrentUser ? 'right-align' : 'left-align';
+                var messageColor = isCurrentUser ? '#e3f2fd' : '#fff3e0';
+                var timeString = new Date(messageDate).toLocaleString();
+                
+                var messageHtml = '<div class="' + messageClass + '" style="margin-bottom: 10px;">' +
+                    '<div style="display: inline-block; max-width: 70%; padding: 10px; border-radius: 8px; background-color: ' + messageColor + '; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">' +
+                    '<strong>' + fromDisplayName + '</strong><br/>' +
+                    '<span style="word-wrap: break-word;">' + message + '</span><br/>' +
+                    '<small style="color: #666;">' + timeString + '</small>' +
+                    '</div>' +
+                    '</div>';
+                
+                $('.messages').append(messageHtml);
+            }
+
+            // Scroll to latest messages
+            function scrollToLatestMessages() {
+                $('.messages').animate({ scrollTop: $('.messages')[0].scrollHeight }, 'normal');
+            }
+
+            // Send message button click
+            $('#btnSendMessage').click(function () {
+                console.log('Send button clicked!');
+                
+                var messageText = $('#messageText').val().trim();
+                console.log('Message text:', messageText);
+                
+                if (messageText === '') {
+                    console.log('Message is empty');
+                    M.toast({html: 'Please enter a message', classes: 'red'});
+                    return;
+                }
+
+                var messageData = {
+                    PartitionKey: serviceRequestId,
+                    FromDisplayName: currentUserName,
+                    FromEmail: currentUserEmail,
+                    Message: messageText
+                };
+
+                console.log('Service Request ID:', serviceRequestId);
+                console.log('Current User Email:', currentUserEmail);
+                console.log('Current User Name:', currentUserName);
+                console.log('Sending message data:', messageData);
+                console.log('AJAX URL:', '/ServiceRequests/ServiceRequest/CreateServiceRequestMessage');
+
+                $.ajax({
+                    url: '/ServiceRequests/ServiceRequest/CreateServiceRequestMessage',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(messageData),
+                    beforeSend: function(xhr) {
+                        console.log('AJAX beforeSend - about to send request');
+                    },
+                    success: function (response) {
+                        console.log('SUCCESS! Message sent successfully:', response);
+                        $('#messageText').val('');
+                        M.updateTextFields();
+                        M.toast({html: 'Message sent!', classes: 'green'});
+                    },
+                    error: function (xhr, status, error) {
+                        console.error("=== ERROR DETAILS ===");
+                        console.error("Error:", error);
+                        console.error("Status:", status);
+                        console.error("Status Code:", xhr.status);
+                        console.error("Response Text:", xhr.responseText);
+                        console.error("Response JSON:", xhr.responseJSON);
+                        console.error("====================");
+                        
+                        var errorMsg = 'Failed to send message';
+                        if (xhr.status === 401) {
+                            errorMsg = 'Unauthorized - Please login again';
+                        } else if (xhr.status === 403) {
+                            errorMsg = 'Forbidden - You do not have permission';
+                        } else if (xhr.status === 404) {
+                            errorMsg = 'Not Found - API endpoint not found';
+                        } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMsg += ': ' + xhr.responseJSON.message;
+                        } else if (xhr.responseText) {
+                            errorMsg += ': ' + xhr.responseText;
+                        }
+                        M.toast({html: errorMsg, classes: 'red', displayLength: 5000});
+                    }
+                });
+            });
+
+            // Send message on Enter key (Shift+Enter for new line)
+            $('#messageText').keypress(function (e) {
+                if (e.which === 13 && !e.shiftKey) {
+                    e.preventDefault();
+                    $('#btnSendMessage').click();
+                }
+            });
+
+            // Cleanup on page unload
+            $(window).on('beforeunload', function () {
+                if (connection.state === signalR.HubConnectionState.Connected) {
+                    connection.invoke("LeaveGroup", serviceRequestId)
+                        .then(function () {
+                            connection.stop();
+                        });
+                }
+            });
+        });
+    </script>
+}

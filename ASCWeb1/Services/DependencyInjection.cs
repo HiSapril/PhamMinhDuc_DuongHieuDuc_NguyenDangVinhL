@@ -1,4 +1,5 @@
 ﻿using ASC.Business.Interfaces;
+using ASC.Business;
 using ASC.DataAccess;
 using ASC.DataAccess.Interfaces;
 using ASCWeb1.Configuration;
@@ -26,7 +27,6 @@ namespace ASCWeb1.Services
             services.AddOptions();
             services.Configure<ApplicationSettings>(config.GetSection("ApplicationSettings"));
 
-            //services.AddDistributedMemoryCache();
             services.AddStackExchangeRedisCache(options =>
             {
                 options.Configuration = config.GetSection("CacheSettings:CacheConnectionString").Value;
@@ -59,6 +59,7 @@ namespace ASCWeb1.Services
             services.AddScoped<IIdentitySeed, IdentitySeed>();
             services.AddScoped<IMasterDataCacheOperations, MasterDataCacheOperations>();
             services.AddScoped<IServiceRequestOperations, ServiceRequestOperations>();
+            services.AddScoped<IServiceRequestMessageOperations, ServiceRequestMessageOperations>();
             services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
 
             // Đăng ký Cache và Navigation

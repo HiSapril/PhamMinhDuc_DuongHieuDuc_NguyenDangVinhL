@@ -3,6 +3,7 @@ using ASC.Model.Models;
 using ASC.Utilities;
 using ASCWeb1.Areas.Configuration.Models;
 using ASCWeb1.Controllers;
+using ASCWeb1.Data;
 using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -193,53 +194,150 @@ namespace ASC.Web.Areas.Configuration.Controllers
             return Json(true);
         }
 
+        // Refresh Cache
+        [HttpGet]
+        public async Task<IActionResult> RefreshCache()
+        {
+            try
+            {
+                var masterDataCache = HttpContext.RequestServices.GetRequiredService<IMasterDataCacheOperations>();
+                await masterDataCache.CreateMasterDataCacheAsync();
+                
+                // Get counts for verification
+                var cache = await masterDataCache.GetMasterDataCacheAsync();
+                var keysCount = cache.Keys?.Count ?? 0;
+                var valuesCount = cache.Values?.Count ?? 0;
+                
+                return Json(new { 
+                    success = true, 
+                    message = $"Cache refreshed successfully! Keys: {keysCount}, Values: {valuesCount}",
+                    keys = keysCount,
+                    values = valuesCount
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = $"Error refreshing cache: {ex.Message}" });
+            }
+        }
+
         // Upload Excel
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> UploadExcel(IFormFile file)
         {
+            Console.WriteLine($"[DEBUG] UploadExcel called - File: {file?.FileName}, Size: {file?.Length}");
+            
             if (file == null || file.Length == 0)
             {
+                Console.WriteLine("[ERROR] No file uploaded");
                 return Json(new { success = false, message = "No file uploaded" });
             }
 
             try
             {
+                // Set EPPlus license (required for EPPlus 5+)
+                // For commercial use, you need a commercial license
+                OfficeOpenXml.ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
+                
                 var masterValues = new List<MasterDataValue>();
 
                 using (var stream = new MemoryStream())
                 {
                     await file.CopyToAsync(stream);
+                    stream.Position = 0; // Reset stream position
+                    
                     using (var package = new ExcelPackage(stream))
                     {
+                        if (package.Workbook.Worksheets.Count == 0)
+                        {
+                            Console.WriteLine("[ERROR] No worksheets found in Excel file");
+                            return Json(new { success = false, message = "No worksheets found in Excel file" });
+                        }
+                        
                         var worksheet = package.Workbook.Worksheets[0];
-                        var rowCount = worksheet.Dimension.Rows;
+                        var rowCount = worksheet.Dimension?.Rows ?? 0;
+                        
+                        Console.WriteLine($"[DEBUG] Worksheet: {worksheet.Name}, Rows: {rowCount}");
+                        
+                        if (rowCount < 2)
+                        {
+                            Console.WriteLine("[ERROR] Excel file must have at least 2 rows (header + data)");
+                            return Json(new { success = false, message = "Excel file must have at least 2 rows (header + data)" });
+                        }
 
                         var userDetails = HttpContext.User.GetCurrentUserDetails();
                         var userName = userDetails?.Name ?? "System";
                         
                         for (int row = 2; row <= rowCount; row++)
                         {
-                            var masterValue = new MasterDataValue
+                            var masterKey = worksheet.Cells[row, 1].Value?.ToString()?.Trim();
+                            var masterValue = worksheet.Cells[row, 2].Value?.ToString()?.Trim();
+                            var isActiveStr = worksheet.Cells[row, 3].Value?.ToString()?.Trim();
+                            
+                            // Skip empty rows
+                            if (string.IsNullOrEmpty(masterKey) || string.IsNullOrEmpty(masterValue))
                             {
-                                PartitionKey = worksheet.Cells[row, 1].Value?.ToString() ?? "",
+                                Console.WriteLine($"[WARN] Skipping row {row} - empty MasterKey or MasterValue");
+                                continue;
+                            }
+                            
+                            bool isActive = true;
+                            if (!string.IsNullOrEmpty(isActiveStr))
+                            {
+                                isActive = isActiveStr.Equals("TRUE", StringComparison.OrdinalIgnoreCase) || 
+                                          isActiveStr.Equals("1", StringComparison.OrdinalIgnoreCase);
+                            }
+                            
+                            var value = new MasterDataValue
+                            {
+                                PartitionKey = masterKey,
                                 RowKey = Guid.NewGuid().ToString(),
-                                Name = worksheet.Cells[row, 2].Value?.ToString() ?? "",
-                                IsActive = bool.Parse(worksheet.Cells[row, 3].Value?.ToString() ?? "true"),
-                                IsDeleted = bool.Parse(worksheet.Cells[row, 4].Value?.ToString() ?? "false"),
+                                Name = masterValue,
+                                IsActive = isActive,
+                                IsDeleted = false,
                                 CreatedBy = userName,
-                                UpdatedBy = userName
+                                UpdatedBy = userName,
+                                CreatedDate = DateTime.UtcNow,
+                                UpdatedDate = DateTime.UtcNow
                             };
-                            masterValues.Add(masterValue);
+                            
+                            masterValues.Add(value);
+                            Console.WriteLine($"[DEBUG] Row {row}: {masterKey} -> {masterValue} (Active: {isActive})");
                         }
                     }
                 }
 
+                if (masterValues.Count == 0)
+                {
+                    Console.WriteLine("[ERROR] No valid data found in Excel file");
+                    return Json(new { success = false, message = "No valid data found in Excel file" });
+                }
+                
+                Console.WriteLine($"[DEBUG] Uploading {masterValues.Count} master values...");
                 await _masterData.UploadBulkMasterData(masterValues);
-                return Json(new { success = true, message = "Data uploaded successfully" });
+                
+                // Refresh Master Data Cache after bulk upload
+                try
+                {
+                    var masterDataCache = HttpContext.RequestServices.GetRequiredService<IMasterDataCacheOperations>();
+                    await masterDataCache.CreateMasterDataCacheAsync();
+                    Console.WriteLine("[SUCCESS] Master Data Cache refreshed");
+                }
+                catch (Exception cacheEx)
+                {
+                    Console.WriteLine($"[WARN] Failed to refresh cache: {cacheEx.Message}");
+                    // Continue even if cache refresh fails
+                }
+                
+                Console.WriteLine("[SUCCESS] Data uploaded successfully");
+                return Json(new { success = true, message = $"Successfully uploaded {masterValues.Count} master values" });
             }
             catch (Exception ex)
             {
-                return Json(new { success = false, message = ex.Message });
+                Console.WriteLine($"[ERROR] Exception: {ex.Message}");
+                Console.WriteLine($"[ERROR] StackTrace: {ex.StackTrace}");
+                return Json(new { success = false, message = $"Error: {ex.Message}" });
             }
         }
     }

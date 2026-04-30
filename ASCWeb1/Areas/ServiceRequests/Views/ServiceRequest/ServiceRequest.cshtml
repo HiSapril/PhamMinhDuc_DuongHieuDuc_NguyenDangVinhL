@@ -17,13 +17,13 @@
                   class="col s12" novalidate="novalidate">
                 <div class="row">
                     <div class="input-field col s4">
-                        <select asp-for="VehicleName" asp-items="@(new SelectList(ViewBag.VehicleNames, "RowKey", "Name"))" class="">
+                        <select asp-for="VehicleName" asp-items="@(new SelectList(ViewBag.VehicleNames, "Name", "Name"))" class="">
                             <option value="">Please select one</option>
                         </select>
                         <label asp-for="VehicleName"></label>
                     </div>
                     <div class="input-field col s4">
-                        <select asp-for="VehicleType" asp-items="@(new SelectList(ViewBag.VehicleTypes, "RowKey", "Name"))" class="validate">
+                        <select asp-for="VehicleType" asp-items="@(new SelectList(ViewBag.VehicleTypes, "Name", "Name"))" class="validate">
                             <option value="">Please select one</option>
                         </select>
                         <label asp-for="VehicleType"></label>

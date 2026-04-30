@@ -48,6 +48,15 @@ builder.Services.AddAuthentication(builder.Configuration);
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 
+// --- CẤU HÌNH ANTIFORGERY ĐỂ CHẤP NHẬN TOKEN TỪ HEADER ---
+builder.Services.AddAntiforgery(options =>
+{
+    options.HeaderName = "RequestVerificationToken";
+});
+
+// --- 4.5. ĐĂNG KÝ SIGNALR ---
+builder.Services.AddSignalR();
+
 // --- 4. CẤU HÌNH SESSION ---
 builder.Services.AddSession(options => {
     options.IdleTimeout = TimeSpan.FromMinutes(30);
@@ -87,6 +96,9 @@ app.MapControllerRoute(
 
 app.MapRazorPages();
 
+// --- 6.5. MAP SIGNALR HUB ---
+app.MapHub<ASCWeb1.Hubs.ServiceMessagesHub>("/servicemessages");
+
 // --- 7. SEED DỮ LIỆU VÀ KHỞI TẠO NAVIGATION CACHE ---
 using (var scope = app.Services.CreateScope())
 {
@@ -121,7 +133,14 @@ using (var scope = app.Services.CreateScope())
 //CreateMasterDataCache
 using (var scope = app.Services.CreateScope())
 {
-    var masterDataCacheOperations = scope.ServiceProvider.GetRequiredService<IMasterDataCacheOperations>();
-    await masterDataCacheOperations.CreateMasterDataCacheAsync();
+    try
+    {
+        var masterDataCacheOperations = scope.ServiceProvider.GetRequiredService<IMasterDataCacheOperations>();
+        await masterDataCacheOperations.CreateMasterDataCacheAsync();
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("LỖI KHI KHỞI TẠO MASTER DATA CACHE: " + ex.Message);
+    }
 }
 app.Run();
