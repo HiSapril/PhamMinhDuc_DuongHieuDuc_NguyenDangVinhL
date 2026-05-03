@@ -111,7 +111,6 @@
                         <thead>
                             <tr>
                                 <th data-field="Email">Email</th>
-                                <th data-field="IsActive">Is Active</th>
                                 <th data-field="Status">Status</th>
                                 <th data-field="Actions">Actions</th>
                             </tr>
@@ -124,7 +123,6 @@
                                 var isActive = isActiveClaim != null && bool.Parse(isActiveClaim.Value);
                                 <tr>
                                     <td>@user.Email</td>
-                                    <td>@isActive</td>
                                     <td>
                                         @if (isActive)
                                         {
@@ -170,11 +168,11 @@
                     <h5 style="margin: 0;">Service Engineer Details</h5>
                 </div>
                 <div class="divider"></div>
-                <form asp-controller="Account" asp-action="ServiceEngineers" method="post" class="col s12" id="frmUser">
-                    <input type="hidden" asp-for="Registration.IsEdit" />
-                    <input type="hidden" asp-for="Registration.Email" />
+                <form asp-area="Accounts" asp-controller="Accounts" asp-action="ServiceEngineers" method="post" class="col s12" id="frmUser">
+                    <input type="hidden" asp-for="Registration.IsEdit" id="Registration_IsEdit" />
+                    <input type="hidden" asp-for="Registration.Email" id="Registration_Email_Hidden" />
                     <div class="input-field col s4">
-                        <input asp-for="Registration.Email" id="Input_Registration_Email" />
+                        <input asp-for="Registration.Email" id="Registration_Email" />
                         <label asp-for="Registration.Email"></label>
                     </div>
                     <div class="input-field col s4">
@@ -193,7 +191,7 @@
                         <div class="switch">
                             <label>
                                 Is Active
-                                <input asp-for="Registration.IsActive" class="validate" />
+                                <input type="checkbox" asp-for="Registration.IsActive" id="Registration_IsActive" />
                                 <span class="lever"></span>
                             </label>
                         </div>
@@ -245,18 +243,54 @@
     <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.js"></script>
     
     <script>
+        // Global function to toggle user status
+        function toggleUserStatus(email, button) {
+            if (!confirm('Are you sure you want to change the status of this user?')) {
+                return;
+            }
+            
+            $.ajax({
+                url: '@Url.Action("ToggleUserStatus", "Accounts")',
+                type: 'POST',
+                data: { 
+                    email: email,
+                    __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                },
+                success: function(response) {
+                    if (response.success) {
+                        M.toast({html: 'User status updated successfully!', classes: 'green'});
+                        
+                        // Reload page to reflect changes
+                        setTimeout(function() {
+                            location.reload();
+                        }, 500);
+                    } else {
+                        M.toast({html: 'Error: ' + response.message, classes: 'red'});
+                    }
+                },
+                error: function() {
+                    M.toast({html: 'An error occurred while updating user status', classes: 'red'});
+                }
+            });
+        }
+        
         // Global function to edit user
         function editUser(email, username, isActive) {
-            console.log('editUser called:', email, username, isActive);
+            console.log('editUser called:', email, username, isActive, typeof isActive);
             
-            // Set cả 2 email fields
-            $('#Input_Registration_Email').val(email);
+            // Set email value
             $('#Registration_Email').val(email);
-            $('#Input_Registration_Email').attr('disabled', 'disabled');
+            $('#Registration_Email_Hidden').val(email);
+            $('#Registration_Email').attr('disabled', 'disabled');
             
             $('#Registration_UserName').val(username);
             $('#Registration_UserName').addClass('valid');
-            $('#Registration_IsActive').prop('checked', isActive);
+            
+            // Ensure isActive is boolean
+            var isActiveBoolean = isActive === true || isActive === 'true';
+            console.log('Setting checkbox to:', isActiveBoolean);
+            $('#Registration_IsActive').prop('checked', isActiveBoolean);
+            
             $('#Registration_IsEdit').val('true');
             
             // Ẩn password fields khi edit
@@ -278,10 +312,7 @@
             // Initialize Datatable to show list of Engineers
             var table = $('#tblServiceEngineers').DataTable({
                 'pageLength': 3,
-                'lengthMenu': [[3, 5, 10, -1], [3, 5, 10, 'All']],
-                'columnDefs': [
-                    { 'visible': false, 'targets': 1 } // Hide the "Is Active" text column
-                ]
+                'lengthMenu': [[3, 5, 10, -1], [3, 5, 10, 'All']]
             });
 
             // Set Styles for DataTable
@@ -291,7 +322,7 @@
             // Handle Reset functionality
             $(document).on('click', '.reset', function () {
                 $('#frmUser')[0].reset();
-                $('#Input_Registration_Email').removeAttr('disabled');
+                $('#Registration_Email').removeAttr('disabled');
                 $('.btnSubmit').text('Create');
                 $('#Registration_IsEdit').val('false');
                 
@@ -300,23 +331,34 @@
                 $('.confirm-password-field').show();
             });
 
-            // This is required to disable Email filed on Server-side model validation failure.
+            // This is required to disable Email field on Server-side model validation failure.
             if ($('#Registration_IsEdit').val() == 'true') {
-                $('#Input_Registration_Email').attr('disabled', 'disabled');
+                $('#Registration_Email').attr('disabled', 'disabled');
             }
 
-            // Set hidden Email field to correct value from UI field
-            $(document).on('click', '.btnSubmit', function (e) {
-                // Đảm bảo cả 2 email fields đều có giá trị
-                var emailValue = $('#Input_Registration_Email').val();
-                $('#Registration_Email').val(emailValue);
+            // Before submit, enable email field and sync hidden field
+            $('#frmUser').on('submit', function (e) {
+                var isActiveChecked = $('#Registration_IsActive').prop('checked');
+                var emailValue = $('#Registration_Email').val();
+                var isEdit = $('#Registration_IsEdit').val();
                 
-                // Enable email field trước khi submit
-                $('#Input_Registration_Email').removeAttr('disabled');
+                console.log('=== FORM SUBMITTING ===');
+                console.log('IsEdit:', isEdit);
+                console.log('Email:', emailValue);
+                console.log('IsActive Checkbox Checked:', isActiveChecked);
+                console.log('UserName:', $('#Registration_UserName').val());
                 
-                M.updateTextFields();
+                // Sync hidden email field
+                $('#Registration_Email_Hidden').val(emailValue);
                 
-                console.log('Submitting with email:', emailValue);
+                // Temporarily enable email field for submission
+                $('#Registration_Email').removeAttr('disabled');
+                
+                // Log all form data
+                var formData = $(this).serializeArray();
+                console.log('Form Data:', formData);
+                
+                return true;
             });
         });
     </script>

@@ -42,14 +42,30 @@ namespace ASCWeb1.Areas.Accounts.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Customers(CustomerViewModel customer)
         {
+            Console.WriteLine($"[DEBUG] Customers POST - IsEdit: {customer.Registration.IsEdit}, Email: {customer.Registration.Email}, IsActive: {customer.Registration.IsActive}");
+            
             customer.Customers = HttpContext.Session.GetSession<List<IdentityUser>>("Customers");
+            
             if (!ModelState.IsValid)
             {
+                Console.WriteLine("[DEBUG] ModelState is INVALID!");
+                foreach (var key in ModelState.Keys)
+                {
+                    var errors = ModelState[key]?.Errors;
+                    if (errors != null)
+                    {
+                        foreach (var error in errors)
+                        {
+                            Console.WriteLine($"[DEBUG] {key}: {error.ErrorMessage}");
+                        }
+                    }
+                }
                 return View(customer);
             }
 
             if (customer.Registration.IsEdit)
             {
+                Console.WriteLine("[DEBUG] Editing customer...");
                 // update user
                 // update claims IsActive
                 var user = await _userManager.FindByEmailAsync(customer.Registration.Email);
@@ -57,21 +73,39 @@ namespace ASCWeb1.Areas.Accounts.Controllers
                 {
                     var identity = await _userManager.GetClaimsAsync(user);
                     var isActiveClaim = identity.SingleOrDefault(p => p.Type == "IsActive");
+                    
+                    Console.WriteLine($"[DEBUG] Current IsActive claim: {isActiveClaim?.Value}");
+                    Console.WriteLine($"[DEBUG] New IsActive value: {customer.Registration.IsActive}");
+                    
                     if (isActiveClaim != null)
                     {
-                        var removeClaimResult = await _userManager.RemoveClaimAsync(user, isActiveClaim);
-                        var addClaimResult = await _userManager.AddClaimAsync(user, new System.Security.Claims.Claim(isActiveClaim.Type, customer.Registration.IsActive.ToString()));
+                        await _userManager.RemoveClaimAsync(user, isActiveClaim);
                     }
+                    await _userManager.AddClaimAsync(user, new Claim("IsActive", customer.Registration.IsActive.ToString()));
+                    
+                    Console.WriteLine("[DEBUG] Customer updated successfully!");
+                }
+                else
+                {
+                    Console.WriteLine("[DEBUG] User not found!");
                 }
             }
 
-            if (customer.Registration.IsActive)
+            // Send email notification
+            try
             {
-                await _emailSender.SendEmailAsync(customer.Registration.Email, "Account Modified", $"Your account has been activated, Email: {{customer.Registration.Email}}");
+                if (customer.Registration.IsActive)
+                {
+                    await _emailSender.SendEmailAsync(customer.Registration.Email, "Account Modified", $"Your account has been activated.");
+                }
+                else
+                {
+                    await _emailSender.SendEmailAsync(customer.Registration.Email, "Account Deactivated", $"Your account has been deactivated.");
+                }
             }
-            else
+            catch (Exception ex)
             {
-                await _emailSender.SendEmailAsync(customer.Registration.Email, "Account Deactivated", $"Your account has been deactivated.");
+                Console.WriteLine($"[WARN] Failed to send email: {ex.Message}");
             }
 
             return RedirectToAction("Customers");
@@ -190,6 +224,48 @@ namespace ASCWeb1.Areas.Accounts.Controllers
             await _signInManager.RefreshSignInAsync(user);
 
             return RedirectToAction("Dashboard", "Dashboard", new { area = "ServiceRequests" });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ToggleCustomerStatus(string email)
+        {
+            try
+            {
+                var user = await _userManager.FindByEmailAsync(email);
+                if (user == null)
+                {
+                    return Json(new { success = false, message = "User not found" });
+                }
+
+                var existingClaims = await _userManager.GetClaimsAsync(user);
+                var isActiveClaim = existingClaims.FirstOrDefault(c => c.Type == "IsActive");
+                
+                bool currentStatus = isActiveClaim != null && bool.Parse(isActiveClaim.Value);
+                bool newStatus = !currentStatus;
+
+                if (isActiveClaim != null)
+                {
+                    await _userManager.RemoveClaimAsync(user, isActiveClaim);
+                }
+                
+                await _userManager.AddClaimAsync(user, new Claim("IsActive", newStatus.ToString()));
+
+                // Send email notification
+                if (newStatus)
+                {
+                    await _emailSender.SendEmailAsync(email, "Account Activated", "Your account has been activated.");
+                }
+                else
+                {
+                    await _emailSender.SendEmailAsync(email, "Account Deactivated", "Your account has been deactivated.");
+                }
+
+                return Json(new { success = true, newStatus = newStatus });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
         }
     }
 }

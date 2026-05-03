@@ -27,11 +27,15 @@ namespace ASCWeb1.Services
             services.AddOptions();
             services.Configure<ApplicationSettings>(config.GetSection("ApplicationSettings"));
 
-            services.AddStackExchangeRedisCache(options =>
-            {
-                options.Configuration = config.GetSection("CacheSettings:CacheConnectionString").Value;
-                options.InstanceName = config.GetSection("CacheSettings:CacheInstance").Value;
-            });
+            // Use in-memory cache instead of Redis for development
+            // Uncomment below to use Redis when available:
+            // services.AddStackExchangeRedisCache(options =>
+            // {
+            //     options.Configuration = config.GetSection("CacheSettings:CacheConnectionString").Value;
+            //     options.InstanceName = config.GetSection("CacheSettings:CacheInstance").Value;
+            // });
+            
+            services.AddDistributedMemoryCache();
             return services;
         }
 
@@ -62,8 +66,7 @@ namespace ASCWeb1.Services
             services.AddScoped<IServiceRequestMessageOperations, ServiceRequestMessageOperations>();
             services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
 
-            // Đăng ký Cache và Navigation
-            services.AddDistributedMemoryCache();
+            // Đăng ký Navigation
             services.AddSingleton<INavigationCacheOperations, NavigationCacheOperations>();
 
             return services;
